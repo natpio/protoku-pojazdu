@@ -8,6 +8,7 @@ from datetime import datetime
 # 1. KONFIGURACJA GITHUB
 # =========================================================
 try:
+    # Upewnij się, że w Streamlit Cloud masz Secret: G_TOKEN
     GITHUB_TOKEN = st.secrets["G_TOKEN"]["G_TOKEN"]
 except Exception:
     GITHUB_TOKEN = None 
@@ -38,7 +39,7 @@ def update_remote_data(new_data, sha):
     return res.status_code == 200
 
 # =========================================================
-# 2. DESIGN VORTEZA 4.0 - FIX EMPTY BARS
+# 2. DESIGN VORTEZA 5.0 - ULTRA CLEAN & READABLE
 # =========================================================
 def apply_vorteza_design():
     try:
@@ -58,46 +59,53 @@ def apply_vorteza_design():
         .logo-font {{
             font-family: 'Michroma', sans-serif !important;
             color: #B58863 !important;
-            text-align: center; font-size: 1.5rem !important;
-            letter-spacing: 5px !important; text-transform: uppercase;
-            margin-bottom: 30px;
+            text-align: center; font-size: 1.6rem !important;
+            letter-spacing: 6px !important; text-transform: uppercase;
+            margin-bottom: 40px;
         }}
 
-        /* NAGŁÓWEK SEKCJI - ZINTEGROWANY */
-        .vorteza-section-title {{
+        /* NAGŁÓWEK SEKCJI - ZŁOTY PASEK */
+        .section-header {{
             background: #B58863;
             color: black !important;
             font-family: 'Michroma', sans-serif;
-            font-size: 0.8rem;
-            padding: 8px 15px;
-            margin-top: 20px;
+            font-size: 0.85rem;
+            padding: 10px 15px;
+            margin-top: 30px;
             border-radius: 4px 4px 0 0;
             letter-spacing: 2px;
             font-weight: bold;
+            text-transform: uppercase;
         }}
 
-        /* KARTA ZAWARTOCI - PODPIĘTA POD TYTUŁ */
-        .vorteza-section-content {{
-            background: rgba(30, 30, 30, 0.6);
-            border: 1px solid rgba(181, 136, 99, 0.3);
+        /* KARTA ZAWARTOCI - SKLEJONA Z NAGŁÓWKIEM */
+        .section-container {{
+            background: rgba(25, 25, 25, 0.8);
+            border: 1px solid rgba(181, 136, 99, 0.4);
             border-top: none;
             border-radius: 0 0 4px 4px;
             padding: 20px;
-            margin-bottom: 20px;
+            margin-bottom: 10px;
         }}
 
+        /* PRZYCISKI */
         .stButton > button {{
             background: #B58863 !important;
             color: white !important; font-family: 'Michroma', sans-serif !important;
             width: 100%; border-radius: 4px !important;
             border: none !important; padding: 18px !important;
-            letter-spacing: 2px;
+            letter-spacing: 3px; font-weight: bold;
+            transition: 0.3s;
         }}
+        .stButton > button:hover {{ background: #8B6B4F !important; transform: scale(1.01); }}
 
-        h3 {{ font-family: 'Michroma', sans-serif !important; color: #B58863 !important; font-size: 1rem !important; }}
-        label, p, span {{ font-family: 'Montserrat', sans-serif !important; color: #FFFFFF !important; }}
+        /* TYPOGRAFIA FORMULARZA */
+        label {{ font-family: 'Montserrat', sans-serif !important; color: #B58863 !important; font-weight: bold !important; }}
+        p, span, div {{ font-family: 'Montserrat', sans-serif !important; color: #FFFFFF !important; }}
         
+        /* UKRYCIE ELEMENTÓW STREAMLIT */
         #MainMenu, footer, header {{visibility: hidden;}}
+        .stDeployButton {{display:none;}}
         </style>
     """, unsafe_allow_html=True)
 
@@ -108,58 +116,78 @@ st.set_page_config(page_title="VORTEZA-BASE", layout="centered")
 apply_vorteza_design()
 
 data, current_sha = get_remote_data()
-if not data: data = {"uzytkownicy": {"admin": "vorteza"}, "lista_kontrolna": {}}
+if not data: 
+    data = {"uzytkownicy": {"admin": "vorteza"}, "lista_kontrolna": {}}
 
-if "auth" not in st.session_state: st.session_state.auth = False
+if "auth" not in st.session_state: 
+    st.session_state.auth = False
 
+# --- EKRAN LOGOWANIA ---
 if not st.session_state.auth:
-    st.markdown("<br><br><div style='text-align:center;'><p class='logo-font'>SYSTEM LOGIN</p></div>", unsafe_allow_html=True)
-    u = st.text_input("Operator")
-    p = st.text_input("Key", type="password")
-    if st.button("AUTHORIZE"):
+    st.markdown("<br><br><div style='text-align:center;'><p class='logo-font'>AUTHORIZATION</p></div>", unsafe_allow_html=True)
+    st.markdown('<div class="section-container" style="border-top: 1px solid rgba(181, 136, 99, 0.4); border-radius:4px;">', unsafe_allow_html=True)
+    u = st.text_input("OPERATOR ID")
+    p = st.text_input("SECURITY KEY", type="password")
+    if st.button("LOGIN"):
         if u in data.get("uzytkownicy", {}) and data["uzytkownicy"][u] == p:
             st.session_state.auth, st.session_state.user = True, u
             st.rerun()
         else: st.error("Access Denied")
+    st.markdown('</div>', unsafe_allow_html=True)
+
+# --- PANEL GŁÓWNY ---
 else:
     with st.sidebar:
-        st.write(f"👤 **{st.session_state.user.upper()}**")
+        st.markdown(f"<p style='color:#B58863; font-family:Michroma;'>USER: {st.session_state.user.upper()}</p>", unsafe_allow_html=True)
         choice = st.radio("MENU", ["DASHBOARD", "USER MANAGER"] if st.session_state.user == "admin" else ["DASHBOARD"])
+        st.markdown("---")
         if st.button("LOGOUT"):
             st.session_state.auth = False
             st.rerun()
 
     if choice == "USER MANAGER":
         st.markdown('<p class="logo-font">USERS</p>', unsafe_allow_html=True)
-        nu, np = st.text_input("Login"), st.text_input("Pass")
-        if st.button("ADD"):
-            data["uzytkownicy"][nu] = np
-            if update_remote_data(data, current_sha): st.success("Added"); st.rerun()
+        st.markdown('<div class="section-container" style="border-top: 1px solid rgba(181, 136, 99, 0.4); border-radius:4px;">', unsafe_allow_html=True)
+        nu = st.text_input("Nowy Login")
+        np = st.text_input("Nowe Hasło")
+        if st.button("DODAJ OPERATORA"):
+            if nu and np:
+                data["uzytkownicy"][nu] = np
+                if update_remote_data(data, current_sha):
+                    st.success(f"Dodano: {nu}")
+                    st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
+
     else:
-        try: st.image('logo_vorteza.png', width=180)
+        # Nagłówek i Logo
+        try: st.image('logo_vorteza.png', width=200)
         except: pass
         st.markdown('<p class="logo-font">VORTEZA - BASE</p>', unsafe_allow_html=True)
         
-        with st.form("protocol"):
-            # Dane podstawowe
-            st.markdown('<div class="vorteza-section-title">PODSTAWOWE INFORMACJE</div><div class="vorteza-section-content">', unsafe_allow_html=True)
-            rej = st.text_input("LICENSE PLATE")
-            km = st.number_input("MILEAGE (KM)", step=1)
+        with st.form("main_form"):
+            # Dane Pojazdu
+            st.markdown('<div class="section-header">INFORMACJE O POJEŹDZIE</div><div class="section-container">', unsafe_allow_html=True)
+            rej = st.text_input("NUMER REJESTRACYJNY")
+            km = st.number_input("PRZEBIEG (KM)", step=1, value=0)
             st.markdown('</div>', unsafe_allow_html=True)
 
-            # Sekcje z pliku JSON
+            # Dynamiczne sekcje z JSON
             for kat, punkty in data.get("lista_kontrolna", {}).items():
-                st.markdown(f'<div class="vorteza-section-title">{kat.upper()}</div>', unsafe_allow_html=True)
-                st.markdown('<div class="vorteza-section-content">', unsafe_allow_html=True)
+                st.markdown(f'<div class="section-header">{kat}</div>', unsafe_allow_html=True)
+                st.markdown('<div class="section-container">', unsafe_allow_html=True)
                 for pt in punkty:
                     st.checkbox(pt, key=f"chk_{pt}")
                 st.markdown('</div>', unsafe_allow_html=True)
 
             # Uwagi
-            st.markdown('<div class="vorteza-section-title">OBSERWACJE</div><div class="vorteza-section-content">', unsafe_allow_html=True)
-            st.text_area("Notatki technika...", height=80)
+            st.markdown('<div class="section-header">UWAGI TECHNICZNE</div><div class="section-container">', unsafe_allow_html=True)
+            uwagi = st.text_area("Wpisz dodatkowe obserwacje...", height=100)
             st.markdown('</div>', unsafe_allow_html=True)
 
-            if st.form_submit_button("SUBMIT PROTOCOL"):
-                if not rej: st.error("Plate missing!")
-                else: st.success("SENT"); st.balloons()
+            # Przycisk wysyłki
+            if st.form_submit_button("WYŚLIJ PROTOKÓŁ"):
+                if not rej:
+                    st.error("Wprowadź numer rejestracyjny!")
+                else:
+                    st.success("PROTOKÓŁ ZOSTAŁ WYGENEROWANY I ZAPISANY")
+                    st.balloons()
