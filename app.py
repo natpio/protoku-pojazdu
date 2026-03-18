@@ -42,7 +42,7 @@ def update_remote_data(new_data, sha):
     return res.status_code == 200
 
 # =========================================================
-# 2. DESIGN VORTEZA 3.5 - REPAIRABLE EXPANDERS
+# 2. DESIGN VORTEZA 3.6 - FIX OVERLAP GLITCH
 # =========================================================
 def apply_vorteza_design():
     try:
@@ -67,23 +67,23 @@ def apply_vorteza_design():
             margin-bottom: 25px;
         }}
 
-        /* STYLIZACJA ZWIJANYCH LIST (EXPANDERÓW) */
-        /* To rozwiązuje problem nieczytelności */
+        /* --- NAPRAWA EXPANDERA (ZAPOBIEGA NACHODZENIU) --- */
         .streamlit-expanderHeader {{
             background-color: rgba(181, 136, 99, 0.1) !important;
             border: 1px solid rgba(181, 136, 99, 0.2) !important;
             border-left: 5px solid #B58863 !important;
-            padding: 10px !important;
             border-radius: 4px !important;
+            padding: 10px !important;
         }}
         
-        /* Naprawa nakładającego się tekstu w nagłówku expandera */
-        .streamlit-expanderHeader p {{
+        /* Kluczowa poprawka: odsuwamy tekst od ikony strzałki */
+        .streamlit-expanderHeader div[data-testid="stMarkdownContainer"] p {{
             font-family: 'Michroma', sans-serif !important;
             color: #B58863 !important;
             font-size: 0.8rem !important;
             letter-spacing: 1px !important;
-            margin-left: 10px !important;
+            margin: 0 !important;
+            padding-left: 35px !important; /* TO TWORZY MIEJSCE NA STRZAŁKĘ */
         }}
 
         .vorteza-card {{
@@ -104,6 +104,7 @@ def apply_vorteza_design():
         h3, .stSubheader {{ font-family: 'Michroma', sans-serif !important; color: #B58863 !important; }}
         
         #MainMenu, footer, header {{visibility: hidden;}}
+        .stDeployButton {{display:none;}}
         </style>
     """, unsafe_allow_html=True)
 
@@ -162,18 +163,16 @@ else:
             km = st.number_input("MILEAGE (KM)", step=1)
             st.markdown('</div>', unsafe_allow_html=True)
 
-            # --- SEKCJE ROZWIJALNE (ZASTĘPUJĄ vorteza-section-header) ---
+            # --- LISTY ROZWIJALNE ---
             if "lista_kontrolna" in data:
                 for kat, punkty in data["lista_kontrolna"].items():
-                    # Używamy expandera do zwijania kategorii
-                    with st.expander(f"📂 {kat.upper()}"):
-                        st.markdown('<div style="padding: 10px 0;">', unsafe_allow_html=True)
+                    # Tutaj tworzymy expander
+                    with st.expander(kat.upper()):
                         for pt in punkty:
                             st.checkbox(pt, key=f"chk_{pt}")
-                        st.markdown('</div>', unsafe_allow_html=True)
 
             st.markdown('<br>', unsafe_allow_html=True)
-            with st.expander("📝 OBSERVATIONS"):
+            with st.expander("OBSERVATIONS"):
                 obs = st.text_area("Technician's Notes...", height=100)
 
             st.markdown('<br>', unsafe_allow_html=True)
