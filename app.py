@@ -5,7 +5,7 @@ import base64
 from datetime import datetime
 
 # =========================================================
-# 1. KONFIGURACJA GITHUB (API & SECRETS)
+# 1. KONFIGURACJA GITHUB
 # =========================================================
 try:
     GITHUB_TOKEN = st.secrets["G_TOKEN"]["G_TOKEN"]
@@ -33,16 +33,12 @@ def update_remote_data(new_data, sha):
     url = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/contents/{FILE_PATH}"
     headers = {"Authorization": f"token {GITHUB_TOKEN}", "Content-Type": "application/json"}
     encoded_content = base64.b64encode(json.dumps(new_data, indent=2, ensure_ascii=False).encode('utf-8')).decode('utf-8')
-    payload = {
-        "message": f"Vorteza Update: {datetime.now().strftime('%Y-%m-%d %H:%M')}",
-        "content": encoded_content,
-        "sha": sha
-    }
+    payload = {"message": "Update VORTEZA", "content": encoded_content, "sha": sha}
     res = requests.put(url, json=payload, headers=headers)
     return res.status_code == 200
 
 # =========================================================
-# 2. DESIGN VORTEZA 3.6 - FIX OVERLAP GLITCH
+# 2. DESIGN VORTEZA 4.0 - ZERO GLITCH (HTML BASED)
 # =========================================================
 def apply_vorteza_design():
     try:
@@ -52,7 +48,7 @@ def apply_vorteza_design():
     
     st.markdown(f"""
         <style>
-        @import url('https://fonts.googleapis.com/css2?family=Michroma&family=Montserrat:wght@400;600;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Michroma&family=Montserrat:wght@400;600&display=swap');
         
         .stApp {{
             background: linear-gradient(rgba(0,0,0,0.85), rgba(0,0,0,0.85)), url("data:image/png;base64,{bg_base64}");
@@ -67,23 +63,47 @@ def apply_vorteza_design():
             margin-bottom: 25px;
         }}
 
-        /* --- NAPRAWA EXPANDERA (ZAPOBIEGA NACHODZENIU) --- */
-        .streamlit-expanderHeader {{
-            background-color: rgba(181, 136, 99, 0.1) !important;
-            border: 1px solid rgba(181, 136, 99, 0.2) !important;
-            border-left: 5px solid #B58863 !important;
-            border-radius: 4px !important;
-            padding: 10px !important;
+        /* STYLIZACJA WŁASNYCH ROZWIJANYCH SEKCJI */
+        details {{
+            background: rgba(181, 136, 99, 0.1);
+            border: 1px solid rgba(181, 136, 99, 0.3);
+            border-left: 5px solid #B58863;
+            border-radius: 4px;
+            margin-bottom: 10px;
+            transition: all 0.3s ease;
         }}
-        
-        /* Kluczowa poprawka: odsuwamy tekst od ikony strzałki */
-        .streamlit-expanderHeader div[data-testid="stMarkdownContainer"] p {{
-            font-family: 'Michroma', sans-serif !important;
-            color: #B58863 !important;
-            font-size: 0.8rem !important;
-            letter-spacing: 1px !important;
-            margin: 0 !important;
-            padding-left: 35px !important; /* TO TWORZY MIEJSCE NA STRZAŁKĘ */
+
+        summary {{
+            padding: 15px;
+            font-family: 'Michroma', sans-serif;
+            color: #B58863;
+            font-size: 0.85rem;
+            cursor: pointer;
+            list-style: none; /* Ukrywa standardową strzałkę */
+            outline: none;
+            letter-spacing: 2px;
+            display: flex;
+            align-items: center;
+        }}
+
+        summary::-webkit-details-marker {{ display: none; }} /* Ukrywa strzałkę w Safari */
+
+        summary:before {{
+            content: '▶';
+            display: inline-block;
+            margin-right: 15px;
+            font-size: 0.7rem;
+            transition: transform 0.2s;
+        }}
+
+        details[open] summary:before {{
+            transform: rotate(90deg);
+        }}
+
+        .content-box {{
+            padding: 20px;
+            background: rgba(20, 20, 20, 0.5);
+            border-top: 1px solid rgba(181, 136, 99, 0.1);
         }}
 
         .vorteza-card {{
@@ -101,7 +121,6 @@ def apply_vorteza_design():
         }}
 
         label, p, span {{ font-family: 'Montserrat', sans-serif !important; color: #FFFFFF !important; }}
-        h3, .stSubheader {{ font-family: 'Michroma', sans-serif !important; color: #B58863 !important; }}
         
         #MainMenu, footer, header {{visibility: hidden;}}
         .stDeployButton {{display:none;}}
@@ -115,67 +134,65 @@ st.set_page_config(page_title="VORTEZA-BASE", layout="centered")
 apply_vorteza_design()
 
 data, current_sha = get_remote_data()
-if data is None: 
-    data = {"uzytkownicy": {"admin": "vorteza"}, "lista_kontrolna": {}}
+if not data: data = {"uzytkownicy": {"admin": "vorteza"}, "lista_kontrolna": {}}
 
 if "auth" not in st.session_state: st.session_state.auth = False
 
 # --- LOGOWANIE ---
 if not st.session_state.auth:
-    st.markdown("<br><br><div class='vorteza-card' style='text-align:center;'><p style='font-family:Michroma; color:#B58863;'>SYSTEM ACCESS</p></div>", unsafe_allow_html=True)
-    u = st.text_input("OPERATOR ID")
-    p = st.text_input("SECURITY KEY", type="password")
-    if st.button("AUTHORIZE"):
+    st.markdown("<br><br>", unsafe_allow_html=True)
+    st.markdown('<div class="vorteza-card" style="text-align:center;"><p class="logo-font">ACCESS</p>', unsafe_allow_html=True)
+    u = st.text_input("ID")
+    p = st.text_input("KEY", type="password")
+    if st.button("LOGIN"):
         if u in data.get("uzytkownicy", {}) and data["uzytkownicy"][u] == p:
             st.session_state.auth, st.session_state.user = True, u
             st.rerun()
-        else: st.error("Access Denied")
+    st.markdown('</div>', unsafe_allow_html=True)
 
 # --- PANEL GŁÓWNY ---
 else:
     with st.sidebar:
         st.write(f"👤 **{st.session_state.user.upper()}**")
-        menu = ["DASHBOARD"]
-        if st.session_state.user == "admin": menu.append("USER MANAGER")
-        choice = st.radio("NAVIGATE", menu)
         if st.button("LOGOUT"):
             st.session_state.auth = False
             st.rerun()
 
-    if choice == "USER MANAGER":
-        st.markdown('<p class="logo-font">USER MANAGER</p>', unsafe_allow_html=True)
-        with st.form("add_user"):
-            nu, np = st.text_input("Login"), st.text_input("Hasło")
-            if st.form_submit_button("DODAJ OPERATORA"):
-                data["uzytkownicy"][nu] = np
-                if update_remote_data(data, current_sha):
-                    st.success(f"Dodano: {nu}"); st.rerun()
+    try: st.image('logo_vorteza.png', width=180)
+    except: pass
+    st.markdown('<p class="logo-font">VORTEZA - BASE</p>', unsafe_allow_html=True)
+    
+    with st.form("main_form"):
+        # Dane pojazdu
+        st.markdown('<div class="vorteza-card">', unsafe_allow_html=True)
+        rej = st.text_input("LICENSE PLATE")
+        km = st.number_input("MILEAGE (KM)", step=1)
+        st.markdown('</div>', unsafe_allow_html=True)
 
-    else:
-        try: st.image('logo_vorteza.png', width=180)
-        except: pass
-        st.markdown('<p class="logo-font">VORTEZA - BASE</p>', unsafe_allow_html=True)
-        
-        with st.form("protocol_form"):
-            st.markdown('<div class="vorteza-card">', unsafe_allow_html=True)
-            st.subheader("Vehicle Data")
-            rej = st.text_input("LICENSE PLATE")
-            km = st.number_input("MILEAGE (KM)", step=1)
-            st.markdown('</div>', unsafe_allow_html=True)
+        # Dynamiczne sekcje (Zwijane przez HTML)
+        if "lista_kontrolna" in data:
+            for kat, punkty in data["lista_kontrolna"].items():
+                # Używamy HTML Details/Summary zamiast st.expander
+                st.markdown(f"""
+                    <details>
+                        <summary>{kat.upper()}</summary>
+                        <div class="content-box">
+                """, unsafe_allow_html=True)
+                
+                # Checkboxy muszą być wewnątrz formy, ale poza blokiem HTML 
+                # więc robimy mały trick ze st.container
+                for pt in punkty:
+                    st.checkbox(pt, key=f"chk_{pt}")
+                
+                st.markdown("</div></details>", unsafe_allow_html=True)
 
-            # --- LISTY ROZWIJALNE ---
-            if "lista_kontrolna" in data:
-                for kat, punkty in data["lista_kontrolna"].items():
-                    # Tutaj tworzymy expander
-                    with st.expander(kat.upper()):
-                        for pt in punkty:
-                            st.checkbox(pt, key=f"chk_{pt}")
+        # Uwagi
+        st.markdown('<br>', unsafe_allow_html=True)
+        st.markdown('<details><summary>OBSERVATIONS</summary><div class="content-box">', unsafe_allow_html=True)
+        obs = st.text_area("Notes...", key="obs_area")
+        st.markdown('</div></details>', unsafe_allow_html=True)
 
-            st.markdown('<br>', unsafe_allow_html=True)
-            with st.expander("OBSERVATIONS"):
-                obs = st.text_area("Technician's Notes...", height=100)
-
-            st.markdown('<br>', unsafe_allow_html=True)
-            if st.form_submit_button("SUBMIT AND ENCRYPT PROTOCOL"):
-                if not rej: st.error("Plate number required!")
-                else: st.success("PROTOCOL TRANSMITTED"); st.balloons()
+        st.markdown('<br>', unsafe_allow_html=True)
+        if st.form_submit_button("SUBMIT PROTOCOL"):
+            if not rej: st.error("No plate!")
+            else: st.success("TRANSMITTED"); st.balloons()
