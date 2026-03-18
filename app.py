@@ -46,14 +46,13 @@ def get_data():
         return None
 
 # =========================================================
-# 3. DESIGN: VORTEZA - BASE "LOGO-MATCH EDITION"
+# 3. DESIGN: VORTEZA - BASE "MOBILE OPTIMIZED"
 # =========================================================
 def apply_vorteza_design():
     bg_base64 = get_base64('bg_vorteza.png')
     
     st.markdown(f"""
         <style>
-        /* IMPORT CZCIONEK: MICHROMA (Szeroka jak w logo) i MONTSERRAT */
         @import url('https://fonts.googleapis.com/css2?family=Michroma&family=Montserrat:wght@400;700;900&display=swap');
         
         .stApp {{
@@ -80,14 +79,15 @@ def apply_vorteza_design():
             color: #B58863 !important;
             text-align: center;
             font-size: 2.2rem !important;
-            letter-spacing: 8px !important; /* Szerokie rozstawienie jak w logo */
+            letter-spacing: 8px !important;
             text-transform: uppercase;
             font-weight: bold;
+            margin-top: 10px;
             margin-bottom: 40px;
             text-shadow: 2px 2px 10px rgba(0,0,0,0.8);
         }}
 
-        /* POZOSTAŁE NAGŁÓWKI (Kategorie) */
+        /* POZOSTAŁE NAGŁÓWKI */
         h2, h3, .stSubheader {{
             font-family: 'Michroma', sans-serif !important;
             color: #B58863 !important;
@@ -96,7 +96,6 @@ def apply_vorteza_design():
             text-transform: uppercase;
         }}
 
-        /* TREŚĆ I CHECKBOXY */
         .stApp, p, label, span, div {{
             font-family: 'Montserrat', sans-serif !important;
             color: #FFFFFF !important;
@@ -154,6 +153,13 @@ def apply_vorteza_design():
         }}
 
         div[data-testid="stForm"] {{ border: none !important; padding: 0 !important; }}
+        
+        /* Centrowanie obrazu logo */
+        .logo-container {{
+            display: flex;
+            justify-content: center;
+            margin-bottom: -20px;
+        }}
         </style>
     """, unsafe_allow_html=True)
 
@@ -183,18 +189,26 @@ if not st.session_state.auth:
 
 # --- PANEL OPERACYJNY ---
 else:
+    # Sidebar zawiera teraz tylko dane sesji i Logout
     with st.sidebar:
-        try: st.image('logo_vorteza.png', use_container_width=True)
-        except: st.title("VORTEZA")
-        st.markdown("---")
+        st.markdown("<br>", unsafe_allow_html=True)
         st.write(f"👤 **OPERATOR:** {st.session_state.user}")
         st.write(f"📅 **DATE:** {datetime.now().strftime('%d/%m/%Y')}")
+        st.markdown("---")
         if st.button("LOGOUT SYSTEM"):
             st.session_state.auth = False
             st.rerun()
 
     config = get_data()
     if config:
+        # LOGO WIDOCZNE NA GŁÓWNYM EKRANIE (Zoptymalizowane pod telefon)
+        _, logo_col, _ = st.columns([1, 0.8, 1])
+        with logo_col:
+            try:
+                st.image('logo_vorteza.png', use_container_width=True)
+            except:
+                pass
+
         # GŁÓWNY NAGŁÓWEK STYLIZOWANY NA LOGO
         st.markdown('<p class="logo-font">VORTEZA - BASE</p>', unsafe_allow_html=True)
         
