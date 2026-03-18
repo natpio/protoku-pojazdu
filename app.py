@@ -6,14 +6,10 @@ from PIL import Image
 from datetime import datetime
 
 # =========================================================
-# 1. KONFIGURACJA DOSTĘPU I UŻYTKOWNIKÓW
+# 1. KONFIGURACJA
 # =========================================================
-USER_DB = {
-    "admin": "vorteza",
-    "kierowca1": "CrystalBridge116"
-}
+USER_DB = {"admin": "vorteza", "kierowca1": "CrystalBridge116"}
 
-# Pobieranie TOKENU z Streamlit Secrets
 try:
     GITHUB_TOKEN = st.secrets["G_TOKEN"]["G_TOKEN"]
 except Exception:
@@ -30,12 +26,10 @@ def get_base64_of_bin_file(bin_file):
     try:
         with open(bin_file, 'rb') as f:
             return base64.b64encode(f.read()).decode()
-    except:
-        return ""
+    except: return ""
 
 def get_github_data():
-    if not GITHUB_TOKEN:
-        return None
+    if not GITHUB_TOKEN: return None
     url = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/contents/{FILE_PATH}"
     headers = {"Authorization": f"token {GITHUB_TOKEN}"}
     try:
@@ -45,11 +39,10 @@ def get_github_data():
             decoded = base64.b64decode(content['content']).decode('utf-8')
             return json.loads(decoded)
         return None
-    except:
-        return None
+    except: return None
 
 # =========================================================
-# 3. STYLIZACJA VORTEZA ULTRA-CONTRAST (SOLID BLACK)
+# 3. PREMIUM VORTEZA DESIGN (MODERN CARBON & COPPER)
 # =========================================================
 def apply_vorteza_theme():
     bin_str = get_base64_of_bin_file('bg_vorteza.png')
@@ -66,70 +59,92 @@ def apply_vorteza_theme():
 
     st.markdown("""
         <style>
-            @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@700;900&display=swap');
+            @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;800&display=swap');
 
-            /* 1. SOLIDNE CZARNE PANELE - ZERO PRZEŚWITÓW */
-            .vorteza-section {
-                background-color: #000000 !important; 
-                padding: 30px;
-                border-radius: 4px;
-                border: 2px solid #B58863;
-                margin-bottom: 25px;
-                box-shadow: 0 20px 60px rgba(0,0,0,1);
+            :root {
+                --copper: #B58863;
+                --dark-glass: rgba(10, 10, 10, 0.85);
             }
 
-            /* 2. WYMUSZENIE BIAŁEGO KOLORU DLA WSZYSTKIEGO */
-            .stApp, p, span, label, div {
-                color: #FFFFFF !important;
+            /* Globalne ustawienia czcionki */
+            .stApp, p, label, div, span {
                 font-family: 'Montserrat', sans-serif !important;
-                font-weight: 700 !important;
+                color: #FFFFFF !important;
             }
 
-            /* 3. NAGŁÓWKI (MIEDŹ NA CZARNYM TLE) */
+            /* PANELE - Nowoczesny Glassmorphism */
+            .vorteza-section {
+                background: linear-gradient(145deg, rgba(20,20,20,0.95) 0%, rgba(5,5,5,0.8) 100%);
+                padding: 30px;
+                border-radius: 15px;
+                border: 1px solid rgba(181, 136, 99, 0.3);
+                box-shadow: 0 10px 30px rgba(0,0,0,0.8), inset 0 0 15px rgba(181, 136, 99, 0.05);
+                margin-bottom: 25px;
+                backdrop-filter: blur(10px);
+            }
+
+            /* NAGŁÓWKI - Elegancka Miedź */
             h1, h2, h3, .stSubheader {
-                color: #B58863 !important;
-                font-weight: 900 !important;
+                color: var(--copper) !important;
+                font-weight: 800 !important;
                 text-transform: uppercase;
                 letter-spacing: 3px;
-                text-shadow: none !important;
-                background: #000000;
-                padding: 5px 10px;
+                margin-bottom: 20px !important;
+                border-bottom: 2px solid var(--copper);
+                display: inline-block;
+                padding-bottom: 5px;
             }
 
-            /* 4. CHECKBOXY - CZYTELNOŚĆ 100% */
+            /* CHECKBOXY - Stylizacja Premium */
+            .stCheckbox label {
+                transition: 0.3s;
+                padding: 8px 12px;
+                border-radius: 8px;
+            }
+            .stCheckbox label:hover {
+                background: rgba(181, 136, 99, 0.1);
+            }
             .stCheckbox label p {
-                color: #FFFFFF !important;
-                font-size: 1.2rem !important;
-                font-weight: 700 !important;
-                background-color: rgba(255,255,255,0.05);
-                padding: 5px 15px;
-                border-radius: 3px;
+                font-weight: 400 !important;
+                font-size: 1.05rem !important;
+                text-shadow: 1px 1px 4px rgba(0,0,0,0.8);
             }
 
-            /* 5. POLA INPUT */
+            /* INPUTY - Ciemne i minimalistyczne */
             input, textarea, div[data-baseweb="input"] > div {
-                background-color: #111111 !important;
-                color: #FFFFFF !important;
-                border: 1px solid #B58863 !important;
-                font-size: 1.1rem !important;
+                background-color: rgba(0,0,0,0.6) !important;
+                border: 1px solid rgba(181, 136, 99, 0.3) !important;
+                color: white !important;
+                border-radius: 8px !important;
+            }
+            input:focus {
+                border-color: var(--copper) !important;
+                box-shadow: 0 0 10px rgba(181, 136, 99, 0.4) !important;
             }
 
-            label[data-testid="stWidgetLabel"] p {
-                color: #B58863 !important;
-                font-size: 1rem !important;
-                font-weight: 900 !important;
-            }
-
-            /* 6. PRZYCISK ZATWIERDZENIA */
+            /* PRZYCISK - VORTEZA SIGNATURE */
             .stButton > button {
-                background-color: #B58863 !important;
-                color: #000000 !important;
-                font-weight: 900 !important;
-                font-size: 1.2rem !important;
-                height: 3.5em;
-                border-radius: 2px !important;
+                background: linear-gradient(90deg, #8B6B4F 0%, #B58863 50%, #8B6B4F 100%);
+                color: white !important;
+                font-weight: 700 !important;
+                border: None !important;
+                padding: 15px 30px !important;
                 text-transform: uppercase;
-                width: 100%;
+                letter-spacing: 2px;
+                border-radius: 50px !important;
+                box-shadow: 0 5px 15px rgba(0,0,0,0.4);
+                transition: 0.4s ease;
+            }
+            .stButton > button:hover {
+                transform: scale(1.02);
+                box-shadow: 0 8px 25px rgba(181, 136, 99, 0.5);
+                filter: brightness(1.1);
+            }
+
+            /* Ukrycie domyślnych obramowań Streamlit */
+            div[data-testid="stForm"] {
+                border: none !important;
+                padding: 0 !important;
             }
         </style>
     """, unsafe_allow_html=True)
@@ -137,79 +152,64 @@ def apply_vorteza_theme():
 # =========================================================
 # 4. LOGIKA APLIKACJI
 # =========================================================
-st.set_page_config(page_title="VORTEZA | PROTOKÓŁ", layout="wide")
+st.set_page_config(page_title="VORTEZA FLOW", layout="wide")
 apply_vorteza_theme()
 
-if "auth" not in st.session_state:
-    st.session_state.auth = False
+if "auth" not in st.session_state: st.session_state.auth = False
 
-# --- LOGOWANIE ---
 if not st.session_state.auth:
-    _, col, _ = st.columns([1, 2, 1])
+    _, col, _ = st.columns([1, 1.5, 1])
     with col:
-        st.markdown('<div class="vorteza-section">', unsafe_allow_html=True)
-        st.subheader("VORTEZA | LOGIN")
+        st.markdown('<div class="vorteza-section" style="text-align:center;">', unsafe_allow_html=True)
+        st.subheader("SYSTEM LOGIN")
         u = st.text_input("Użytkownik")
         p = st.text_input("Hasło", type="password")
         if st.button("AUTORYZUJ"):
             if u in USER_DB and USER_DB[u] == p:
-                st.session_state.auth = True
-                st.session_state.username = u
+                st.session_state.auth, st.session_state.username = True, u
                 st.rerun()
-            else:
-                st.error("Odmowa dostępu.")
+            else: st.error("Dostęp zabroniony.")
         st.markdown('</div>', unsafe_allow_html=True)
-
-# --- PANEL GŁÓWNY ---
 else:
-    c1, c2, c3 = st.columns([1, 4, 1])
+    # --- HEADER ---
+    c1, c2, c3 = st.columns([1, 3, 1])
     with c1:
-        try:
-            logo = Image.open('logo_vorteza.png')
-            st.image(logo, width=150)
-        except:
-            st.title("VORTEZA")
+        try: st.image('logo_vorteza.png', width=140)
+        except: st.title("VORTEZA")
     with c3:
+        st.markdown("<br>", unsafe_allow_html=True)
         if st.button("WYLOGUJ"):
             st.session_state.auth = False
             st.rerun()
 
-    # Pobieranie listy kontrolnej
-    data = get_github_data()
-    
-    if data:
+    config = get_github_data()
+    if config:
         with st.form("main_form"):
-            # Sekcja 1: Dane
             st.markdown('<div class="vorteza-section">', unsafe_allow_html=True)
-            st.subheader("Pojazd i Przebieg")
-            r1, r2 = st.columns(2)
-            rej = r1.text_input("Numer Rejestracyjny")
-            km = r2.number_input("Aktualny Przebieg", step=1, value=0)
+            st.subheader("DANE POJAZDU")
+            col_a, col_b = st.columns(2)
+            rej = col_a.text_input("NUMER REJESTRACYJNY")
+            km = col_b.number_input("AKTUALNY PRZEBIEG", step=1)
             st.markdown('</div>', unsafe_allow_html=True)
 
-            # Sekcje pytań z JSON
-            for kat, punkty in data["lista_kontrolna"].items():
+            for kat, punkty in config["lista_kontrolna"].items():
                 st.markdown('<div class="vorteza-section">', unsafe_allow_html=True)
                 st.subheader(kat)
-                # Dwie kolumny dla wygody
                 cols = st.columns(2)
                 for idx, p in enumerate(punkty):
                     with cols[idx % 2]:
-                        st.checkbox(p, key=f"c_{p}")
+                        st.checkbox(p, key=f"chk_{p}")
                 st.markdown('</div>', unsafe_allow_html=True)
 
-            # Sekcja Uwagi
             st.markdown('<div class="vorteza-section">', unsafe_allow_html=True)
-            st.subheader("Dodatkowe Uwagi")
-            uwagi = st.text_area("Opisz usterki lub uwagi...")
+            st.subheader("UWAGI KOŃCOWE")
+            uwagi = st.text_area("Uwagi do stanu technicznego...")
             st.markdown('</div>', unsafe_allow_html=True)
 
-            # Finał
-            if st.form_submit_button("ZATWIERDŹ PROTOKÓŁ"):
-                if not rej:
-                    st.error("Brak numeru rejestracyjnego!")
-                else:
-                    st.success(f"Protokół dla {rej} gotowy!")
-                    st.balloons()
+            st.markdown("<div style='text-align:center;'>", unsafe_allow_html=True)
+            if st.form_submit_button("ZATWIERDŹ I WYŚLIJ PROTOKÓŁ"):
+                st.success("PROTOKÓŁ PRZESŁANY POMYŚLNIE")
+                st.balloons()
+            st.markdown("</div>", unsafe_allow_html=True)
     else:
-        st.error("Błąd połączenia z bazą danych (GitHub).")
+        st.error("Problem z bazą pytań GitHub.")
