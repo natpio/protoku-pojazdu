@@ -5,11 +5,12 @@ import base64
 from datetime import datetime
 
 # =========================================================
-# 1. KONFIGURACJA GITHUB
+# 1. KONFIGURACJA GITHUB (API & SECRETS)
 # =========================================================
 try:
+    # Token musi być w Secrets pod nazwą G_TOKEN
     GITHUB_TOKEN = st.secrets["G_TOKEN"]["G_TOKEN"]
-except:
+except Exception:
     GITHUB_TOKEN = None 
 
 REPO_OWNER = "natpio"
@@ -33,12 +34,16 @@ def update_remote_data(new_data, sha):
     url = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/contents/{FILE_PATH}"
     headers = {"Authorization": f"token {GITHUB_TOKEN}", "Content-Type": "application/json"}
     encoded_content = base64.b64encode(json.dumps(new_data, indent=2, ensure_ascii=False).encode('utf-8')).decode('utf-8')
-    payload = {"message": "Update VORTEZA Users", "content": encoded_content, "sha": sha}
+    payload = {
+        "message": f"Vorteza Update: {datetime.now().strftime('%Y-%m-%d %H:%M')}",
+        "content": encoded_content,
+        "sha": sha
+    }
     res = requests.put(url, json=payload, headers=headers)
     return res.status_code == 200
 
 # =========================================================
-# 2. DESIGN VORTEZA 3.0 - CLEAN & READABLE
+# 2. DESIGN VORTEZA 3.0 - NO-GLITCH UI
 # =========================================================
 def apply_vorteza_design():
     try:
@@ -48,75 +53,80 @@ def apply_vorteza_design():
     
     st.markdown(f"""
         <style>
-        @import url('https://fonts.googleapis.com/css2?family=Michroma&family=Montserrat:wght@300;400;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Michroma&family=Montserrat:wght@400;600;700&display=swap');
         
         .stApp {{
             background: linear-gradient(rgba(0,0,0,0.85), rgba(0,0,0,0.85)), url("data:image/png;base64,{bg_base64}");
             background-size: cover; background-attachment: fixed;
         }}
 
+        /* NAGŁÓWEK */
         .logo-font {{
             font-family: 'Michroma', sans-serif !important;
             color: #B58863 !important;
-            text-align: center; font-size: 1.6rem !important;
+            text-align: center; font-size: 1.5rem !important;
             letter-spacing: 5px !important; text-transform: uppercase;
-            margin-bottom: 30px;
+            margin-bottom: 25px; text-shadow: 2px 2px 8px rgba(0,0,0,0.5);
         }}
 
-        /* STYL KARTY KATEGORII (Zastępuje expander) */
-        .category-header {{
-            background: rgba(181, 136, 99, 0.15);
-            border-left: 4px solid #B58863;
-            padding: 15px;
-            margin: 10px 0;
-            border-radius: 4px;
+        /* CZYSTA BELKA KATEGORII (Zamiast expandera) */
+        .vorteza-section-header {{
+            background: rgba(181, 136, 99, 0.2);
+            border-left: 5px solid #B58863;
+            padding: 12px 20px;
+            margin: 25px 0 10px 0;
             font-family: 'Michroma', sans-serif;
             color: #B58863;
-            font-size: 0.9rem;
+            font-size: 0.85rem;
             letter-spacing: 2px;
+            text-transform: uppercase;
         }}
 
+        /* KARTY DANYCH */
         .vorteza-card {{
-            background: rgba(20, 20, 20, 0.6);
+            background: rgba(20, 20, 20, 0.7);
             border: 1px solid rgba(255, 255, 255, 0.05);
-            border-radius: 8px; padding: 20px; margin-bottom: 20px;
+            border-radius: 4px; padding: 20px; margin-bottom: 15px;
         }}
 
-        /* PRZYCISKI */
+        /* PRZYCISK GŁÓWNY */
         .stButton > button {{
             background: #B58863 !important;
             color: white !important; font-family: 'Michroma', sans-serif !important;
-            width: 100%; border-radius: 4px !important;
-            border: none !important; padding: 15px !important;
-            letter-spacing: 2px;
+            width: 100%; border-radius: 2px !important;
+            border: none !important; padding: 18px !important;
+            letter-spacing: 2px; font-size: 1rem !important;
         }}
 
-        h3 {{ font-family: 'Michroma', sans-serif !important; color: #B58863 !important; font-size: 1rem !important; margin-bottom: 15px; }}
-        label, p, span {{ font-family: 'Montserrat', sans-serif !important; color: #FFFFFF !important; font-size: 1rem !important; }}
+        /* TYPOGRAFIA */
+        h3, .stSubheader {{ font-family: 'Michroma', sans-serif !important; color: #B58863 !important; font-size: 0.9rem !important; }}
+        label, p, span {{ font-family: 'Montserrat', sans-serif !important; color: #FFFFFF !important; }}
         
-        /* UKRYCIE ŚMIECI STREAMLITA */
+        /* UKRYCIE ELEMENTÓW STREAMLIT */
         #MainMenu, footer, header {{visibility: hidden;}}
+        .stDeployButton {{display:none;}}
         </style>
     """, unsafe_allow_html=True)
 
 # =========================================================
-# 3. LOGIKA APLIKACJI
+# 3. LOGIKA SYSTEMU
 # =========================================================
-st.set_page_config(page_title="VORTEZA-BASE", layout="centered") # Zmieniono na centered dla lepszej czytelności
+st.set_page_config(page_title="VORTEZA-BASE", layout="centered")
 apply_vorteza_design()
 
 data, current_sha = get_remote_data()
-if data is None: data = {"uzytkownicy": {"admin": "vorteza"}, "lista_kontrolna": {}}
+if data is None: 
+    data = {"uzytkownicy": {"admin": "vorteza"}, "lista_kontrolna": {}}
 
 if "auth" not in st.session_state: st.session_state.auth = False
 
-# --- LOGOWANIE ---
+# --- EKRAN AUTORYZACJI ---
 if not st.session_state.auth:
     st.markdown("<br><br>", unsafe_allow_html=True)
     st.markdown('<div class="vorteza-card" style="text-align:center;">', unsafe_allow_html=True)
-    st.subheader("SYSTEM ACCESS")
-    u = st.text_input("Operator")
-    p = st.text_input("Security Key", type="password")
+    st.markdown('<p style="font-family:Michroma; color:#B58863; letter-spacing:3px;">SYSTEM ACCESS</p>', unsafe_allow_html=True)
+    u = st.text_input("OPERATOR ID")
+    p = st.text_input("SECURITY KEY", type="password")
     if st.button("AUTHORIZE"):
         if u in data.get("uzytkownicy", {}) and data["uzytkownicy"][u] == p:
             st.session_state.auth, st.session_state.user = True, u
@@ -124,49 +134,61 @@ if not st.session_state.auth:
         else: st.error("Access Denied")
     st.markdown('</div>', unsafe_allow_html=True)
 
-# --- PANEL GŁÓWNY ---
+# --- PANEL OPERACYJNY ---
 else:
     with st.sidebar:
         st.write(f"👤 **{st.session_state.user.upper()}**")
-        menu = ["DASHBOARD", "USER MANAGER"] if st.session_state.user == "admin" else ["DASHBOARD"]
-        choice = st.radio("MENU", menu)
+        menu = ["DASHBOARD"]
+        if st.session_state.user == "admin": menu.append("USER MANAGER")
+        choice = st.radio("NAVIGATE", menu)
         if st.button("LOGOUT"):
             st.session_state.auth = False
             st.rerun()
 
+    # --- MODUŁ ZARZĄDZANIA ---
     if choice == "USER MANAGER":
         st.markdown('<p class="logo-font">USER MANAGER</p>', unsafe_allow_html=True)
-        nu, np = st.text_input("New Login"), st.text_input("New Pass")
-        if st.button("ADD OPERATOR"):
-            data["uzytkownicy"][nu] = np
-            if update_remote_data(data, current_sha): st.success("Added"); st.rerun()
+        with st.form("add_user"):
+            nu = st.text_input("Login")
+            np = st.text_input("Hasło")
+            if st.form_submit_button("DODAJ OPERATORA"):
+                data["uzytkownicy"][nu] = np
+                if update_remote_data(data, current_sha):
+                    st.success(f"Dodano: {nu}"); st.rerun()
+                else: st.error("Błąd połączenia z GitHub.")
 
+    # --- MODUŁ PROTOKOŁU ---
     else:
-        # Logo
         try: st.image('logo_vorteza.png', width=180)
         except: pass
         st.markdown('<p class="logo-font">VORTEZA - BASE</p>', unsafe_allow_html=True)
         
-        # FORMULARZ BEZ EXPANERÓW (Czytelna lista)
-        with st.form("main_vorteza"):
-            # Dane Pojazdu
+        with st.form("protocol_form"):
+            # Sekcja danych pojazdu
             st.markdown('<div class="vorteza-card">', unsafe_allow_html=True)
-            st.subheader("VEHICLE DATA")
+            st.subheader("Vehicle Data")
             rej = st.text_input("LICENSE PLATE")
             km = st.number_input("MILEAGE (KM)", step=1)
             st.markdown('</div>', unsafe_allow_html=True)
 
-            # Kategorie wyświetlane jako czytelne sekcje
-            for kat, punkty in data.get("lista_kontrolna", {}).items():
-                st.markdown(f'<div class="category-header">{kat.upper()}</div>', unsafe_allow_html=True)
-                st.markdown('<div class="vorteza-card">', unsafe_allow_html=True)
-                for pt in punkty:
-                    st.checkbox(pt, key=f"chk_{pt}")
-                st.markdown('</div>', unsafe_allow_html=True)
+            # Generowanie sekcji na podstawie pliku JSON
+            if "lista_kontrolna" in data:
+                for kat, punkty in data["lista_kontrolna"].items():
+                    # Nagłówek sekcji
+                    st.markdown(f'<div class="vorteza-section-header">{kat}</div>', unsafe_allow_html=True)
+                    # Zawartość sekcji (karta z checkboxami)
+                    st.markdown('<div class="vorteza-card">', unsafe_allow_html=True)
+                    for pt in punkty:
+                        st.checkbox(pt, key=f"chk_{pt}")
+                    st.markdown('</div>', unsafe_allow_html=True)
 
-            st.subheader("OBSERVATIONS")
-            obs = st.text_area("Notes...", height=100)
+            # Uwagi końcowe
+            st.markdown('<div class="vorteza-section-header">OBSERVATIONS</div>', unsafe_allow_html=True)
+            st.markdown('<div class="vorteza-card">', unsafe_allow_html=True)
+            obs = st.text_area("Technician's Notes...", height=100)
+            st.markdown('</div>', unsafe_allow_html=True)
 
-            if st.form_submit_button("SUBMIT PROTOCOL"):
-                if not rej: st.error("Plate number missing!")
-                else: st.success("SUCCESSFUL TRANSMISSION"); st.balloons()
+            # Przycisk wysyłki
+            if st.form_submit_button("SUBMIT AND ENCRYPT PROTOCOL"):
+                if not rej: st.error("Plate number required!")
+                else: st.success("PROTOCOL TRANSMITTED"); st.balloons()
