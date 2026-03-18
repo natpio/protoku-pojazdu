@@ -6,10 +6,15 @@ from PIL import Image
 from datetime import datetime
 
 # =========================================================
-# 1. KONFIGURACJA
+# 1. KONFIGURACJA I DOSTĘP
 # =========================================================
-USER_DB = {"admin": "vorteza", "kierowca1": "CrystalBridge116"}
+# Dane logowania użytkowników
+USER_DB = {
+    "admin": "vorteza",
+    "kierowca1": "CrystalBridge116"
+}
 
+# Pobieranie tokenu z bezpiecznych ustawień Streamlit (Secrets)
 try:
     GITHUB_TOKEN = st.secrets["G_TOKEN"]["G_TOKEN"]
 except Exception:
@@ -20,16 +25,21 @@ REPO_NAME = "protoku-pojazdu"
 FILE_PATH = "lista_kontrolna.json"
 
 # =========================================================
-# 2. FUNKCJE POMOCNICZE
+# 2. FUNKCJE TECHNICZNE
 # =========================================================
 def get_base64_of_bin_file(bin_file):
+    """Konwertuje grafikę na kod, aby użyć jej jako tła."""
     try:
         with open(bin_file, 'rb') as f:
-            return base64.b64encode(f.read()).decode()
-    except: return ""
+            data = f.read()
+        return base64.b64encode(data).decode()
+    except:
+        return ""
 
 def get_github_data():
-    if not GITHUB_TOKEN: return None
+    """Pobiera dane z pliku JSON na Twoim GitHubie."""
+    if not GITHUB_TOKEN:
+        return None
     url = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/contents/{FILE_PATH}"
     headers = {"Authorization": f"token {GITHUB_TOKEN}"}
     try:
@@ -39,10 +49,11 @@ def get_github_data():
             decoded = base64.b64decode(content['content']).decode('utf-8')
             return json.loads(decoded)
         return None
-    except: return None
+    except:
+        return None
 
 # =========================================================
-# 3. PREMIUM VORTEZA DESIGN (MODERN CARBON & COPPER)
+# 3. DESIGN PREMIUM (MODERN CARBON & COPPER)
 # =========================================================
 def apply_vorteza_theme():
     bin_str = get_base64_of_bin_file('bg_vorteza.png')
@@ -141,7 +152,6 @@ def apply_vorteza_theme():
                 filter: brightness(1.1);
             }
 
-            /* Ukrycie domyślnych obramowań Streamlit */
             div[data-testid="stForm"] {
                 border: none !important;
                 padding: 0 !important;
@@ -150,13 +160,15 @@ def apply_vorteza_theme():
     """, unsafe_allow_html=True)
 
 # =========================================================
-# 4. LOGIKA APLIKACJI
+# 4. GŁÓWNA LOGIKA APLIKACJI
 # =========================================================
 st.set_page_config(page_title="VORTEZA FLOW", layout="wide")
 apply_vorteza_theme()
 
-if "auth" not in st.session_state: st.session_state.auth = False
+if "auth" not in st.session_state:
+    st.session_state.auth = False
 
+# --- EKRAN LOGOWANIA ---
 if not st.session_state.auth:
     _, col, _ = st.columns([1, 1.5, 1])
     with col:
@@ -166,12 +178,15 @@ if not st.session_state.auth:
         p = st.text_input("Hasło", type="password")
         if st.button("AUTORYZUJ"):
             if u in USER_DB and USER_DB[u] == p:
-                st.session_state.auth, st.session_state.username = True, u
+                st.session_state.auth = True
+                st.session_state.username = u
                 st.rerun()
-            else: st.error("Dostęp zabroniony.")
+            else:
+                st.error("Dostęp zabroniony. Nieprawidłowe dane.")
         st.markdown('</div>', unsafe_allow_html=True)
+
+# --- PANEL GŁÓWNY PO LOGOWANIU ---
 else:
-    # --- HEADER ---
     c1, c2, c3 = st.columns([1, 3, 1])
     with c1:
         try: st.image('logo_vorteza.png', width=140)
@@ -183,33 +198,41 @@ else:
             st.rerun()
 
     config = get_github_data()
+    
     if config:
         with st.form("main_form"):
+            # Sekcja 1: Dane pojazdu
             st.markdown('<div class="vorteza-section">', unsafe_allow_html=True)
             st.subheader("DANE POJAZDU")
             col_a, col_b = st.columns(2)
             rej = col_a.text_input("NUMER REJESTRACYJNY")
-            km = col_b.number_input("AKTUALNY PRZEBIEG", step=1)
+            km = col_b.number_input("AKTUALNY PRZEBIEG", step=1, value=0)
             st.markdown('</div>', unsafe_allow_html=True)
 
+            # Sekcje pytań generowane z pliku JSON
             for kat, punkty in config["lista_kontrolna"].items():
                 st.markdown('<div class="vorteza-section">', unsafe_allow_html=True)
                 st.subheader(kat)
                 cols = st.columns(2)
-                for idx, p in enumerate(punkty):
+                for idx, p_text in enumerate(punkty):
                     with cols[idx % 2]:
-                        st.checkbox(p, key=f"chk_{p}")
+                        st.checkbox(p_text, key=f"chk_{p_text}")
                 st.markdown('</div>', unsafe_allow_html=True)
 
+            # Sekcja Uwagi
             st.markdown('<div class="vorteza-section">', unsafe_allow_html=True)
             st.subheader("UWAGI KOŃCOWE")
-            uwagi = st.text_area("Uwagi do stanu technicznego...")
+            uwagi = st.text_area("Uwagi do stanu technicznego / opis uszkodzeń...")
             st.markdown('</div>', unsafe_allow_html=True)
 
+            # Przycisk wysyłki
             st.markdown("<div style='text-align:center;'>", unsafe_allow_html=True)
             if st.form_submit_button("ZATWIERDŹ I WYŚLIJ PROTOKÓŁ"):
-                st.success("PROTOKÓŁ PRZESŁANY POMYŚLNIE")
-                st.balloons()
+                if not rej:
+                    st.error("BŁĄD: Podaj numer rejestracyjny!")
+                else:
+                    st.success(f"PROTOKÓŁ DLA POJAZDU {rej} ZOSTAŁ PRZESŁANY!")
+                    st.balloons()
             st.markdown("</div>", unsafe_allow_html=True)
     else:
-        st.error("Problem z bazą pytań GitHub.")
+        st.error("BŁĄD: Brak połączenia z bazą GitHub. Sprawdź TOKEN w Secrets.")
