@@ -1,0 +1,42 @@
+{
+    "lista_kontrolna": {
+        "Stan Techniczny": [
+            "Poziom oleju silnikowego",
+            "Poziom płynu chłodniczego",
+            "Poziom płynu hamulcowego",
+            "Poziom płynu do spryskiwaczy",
+            "Działanie hamulca zasadniczego",
+            "Działanie hamulca postojowego",
+            "Oświetlenie (światła mijania, drogowe, pozycyjne)",
+            "Kierunkowskazy",
+            "Światła awaryjne",
+            "Światła stopu",
+            "Opony (stan bieżnika, ciśnienie)",
+            "Wycieraczki (stan i działanie)",
+            "Klakson",
+            "Ewentualne wycieki płynów",
+            "Akumulator (stan naładowania, mocowanie)"
+        ],
+        "Stan Wizualny": [
+            "Stan karoserii (wgniecenia, rysy)",
+            "Szyby (pęknięcia, uszkodzenia)",
+            "Lusterka (stan, ustawienie)",
+            "Czystość zewnętrzna pojazdu",
+            "Czystość wewnętrzna kabiny",
+            "Stan foteli i tapicerki"
+        ],
+        "Wyposażenie": [
+            "Trójkąt ostrzegawczy",
+            "Gaśnica (z datą legalizacji)",
+            "Apteczka pierwszej pomocy",
+            "Koło zapasowe lub zestaw naprawczy",
+            "Klucz do kół i podnośnik",
+            "Kamizelka odblaskowa"
+        ],
+        "Dokumentacja": [
+            "Dowód rejestracyjny",
+            "Polisa ubezpieczeniowa",
+            "Ważność przeglądu technicznego"
+        ]
+    }
+}
