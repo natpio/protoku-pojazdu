@@ -14,7 +14,7 @@ USER_DB = {
     "kierowca1": "CrystalBridge116"
 }
 
-# Bezpieczne pobieranie tokenu z Secrets (nie z kodu!)
+# Bezpieczne pobieranie tokenu z Secrets (G_TOKEN -> G_TOKEN)
 try:
     GITHUB_TOKEN = st.secrets["G_TOKEN"]["G_TOKEN"]
 except Exception:
@@ -73,84 +73,92 @@ def apply_vorteza_theme():
 
     st.markdown("""
         <style>
-            @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap');
+            @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;800&display=swap');
 
             :root {
                 --v-copper: #B58863;
-                --v-panel: rgba(0, 0, 0, 0.88);
                 --v-text: #FFFFFF;
+                --v-panel: rgba(0, 0, 0, 0.9); /* Bardzo ciemny panel pod tekstem */
             }
 
-            .stApp {
-                color: var(--v-text);
-                font-family: 'Montserrat', sans-serif;
+            /* Globalny kolor tekstu - wymuszamy czystą biel i Montserrat */
+            .stApp, p, div, span, label {
+                color: var(--v-text) !important;
+                font-family: 'Montserrat', sans-serif !important;
             }
 
-            /* Ciemny panel pod tekstem dla kontrastu z tłem Carbon */
+            /* Panel sekcji - silny kontrast dla czytelności */
             .vorteza-section {
                 background-color: var(--v-panel);
                 padding: 30px;
-                border-radius: 10px;
-                border-left: 6px solid var(--v-copper);
-                backdrop-filter: blur(12px);
+                border-radius: 12px;
+                border: 1px solid rgba(181, 136, 99, 0.4);
+                border-left: 8px solid var(--v-copper);
+                backdrop-filter: blur(15px);
                 margin-bottom: 25px;
-                box-shadow: 0 15px 40px rgba(0,0,0,0.9);
+                box-shadow: 0 15px 45px rgba(0,0,0,0.9);
             }
 
+            /* Nagłówki sekcji (Miedź) */
             h1, h2, h3, .stSubheader {
                 color: var(--v-copper) !important;
-                font-weight: 700 !important;
+                font-weight: 800 !important;
                 text-transform: uppercase;
-                letter-spacing: 2px;
-                text-shadow: 2px 2px 5px black;
+                letter-spacing: 2.5px;
+                text-shadow: 3px 3px 6px rgba(0,0,0,1) !important;
+                margin-bottom: 20px !important;
             }
 
-            /* Checkboxy - biały tekst i pogrubienie */
-            .stCheckbox label {
-                color: white !important;
-                font-weight: 600 !important;
-                font-size: 1.1rem !important;
-                text-shadow: 1px 1px 2px black;
+            /* Checkboxy - biały, bardzo wyraźny tekst */
+            .stCheckbox label p {
+                color: #FFFFFF !important;
+                font-weight: 700 !important;
+                font-size: 1.15rem !important;
+                text-shadow: 2px 2px 4px rgba(0,0,0,1) !important;
             }
 
-            /* Etykiety pól */
-            label[data-testid="stWidgetLabel"] {
+            /* Pola wpisywania - etykiety */
+            label[data-testid="stWidgetLabel"] p {
                 color: var(--v-copper) !important;
-                font-weight: 700 !important;
+                font-weight: 800 !important;
                 text-transform: uppercase;
-                background: rgba(0,0,0,0.6);
-                padding: 3px 10px;
+                font-size: 0.9rem !important;
+                background: rgba(0,0,0,0.7);
+                padding: 2px 10px;
                 border-radius: 4px;
+                display: inline-block;
             }
 
-            /* Inputy */
-            input, div[data-baseweb="input"] > div {
-                background-color: #000 !important;
-                color: white !important;
+            /* Inputy (Tło czarne, obramowanie miedziane) */
+            input, div[data-baseweb="input"] > div, textarea {
+                background-color: #000000 !important;
+                color: #FFFFFF !important;
                 border: 1px solid var(--v-copper) !important;
+                font-weight: 600 !important;
             }
 
             /* Przycisk VORTEZA */
             .stButton > button {
                 background-color: var(--v-copper) !important;
-                color: black !important;
-                font-weight: 800;
-                border: none;
-                padding: 18px;
+                color: #000000 !important;
+                font-weight: 800 !important;
+                border: none !important;
+                padding: 18px !important;
                 text-transform: uppercase;
                 letter-spacing: 2px;
                 width: 100%;
+                border-radius: 6px !important;
                 transition: 0.3s ease;
             }
             .stButton > button:hover {
-                box-shadow: 0 0 25px var(--v-copper);
-                transform: translateY(-2px);
+                box-shadow: 0 0 30px var(--v-copper);
+                transform: translateY(-3px);
             }
         </style>
     """, unsafe_allow_html=True)
 
 # =========================================================
-# 4. LOGIKA APLIKACJI
+# 4. GŁÓWNA LOGIKA APLIKACJI
 # =========================================================
 st.set_page_config(page_title="VORTEZA FLOW | PROTOKÓŁ", layout="wide")
 apply_vorteza_theme()
@@ -181,29 +189,30 @@ else:
     with c_l:
         try:
             logo = Image.open('logo_vorteza.png')
-            st.image(logo, width=160)
+            st.image(logo, width=180)
         except:
             st.title("VORTEZA")
     with c_r:
-        if st.button("WYLOGUJ"):
+        st.write("") # Spacer
+        if st.button("WYLOGUJ SYSTEM"):
             st.session_state.auth = False
             st.rerun()
 
-    # Próba pobrania checklisty
+    # Próba pobrania checklisty z GitHub
     config = get_github_data()
     
     if config:
         with st.form("protocol_form"):
             # Sekcja 1: Dane pojazdu
             st.markdown('<div class="vorteza-section">', unsafe_allow_html=True)
-            st.subheader("1. Dane techniczne")
+            st.subheader("1. IDENTYFIKACJA OPERACYJNA")
             c1, c2, c3 = st.columns(3)
             with c1: nr_rej = st.text_input("Numer Rejestracyjny")
-            with c2: mileage = st.number_input("Stan Licznika (KM)", step=1)
+            with c2: mileage = st.number_input("Stan Licznika (KM)", step=1, value=0)
             with c3: st.text_input("Kierowca", value=st.session_state.user, disabled=True)
             st.markdown('</div>', unsafe_allow_html=True)
 
-            # Sekcje z JSON
+            # Sekcje dynamiczne z pliku JSON
             for kategoria, punkty in config["lista_kontrolna"].items():
                 st.markdown('<div class="vorteza-section">', unsafe_allow_html=True)
                 st.subheader(kategoria)
@@ -215,16 +224,17 @@ else:
 
             # Sekcja Uwagi
             st.markdown('<div class="vorteza-section">', unsafe_allow_html=True)
-            st.subheader("Uwagi dodatkowe")
-            uwagi = st.text_area("Opis ewentualnych uszkodzeń lub braków")
+            st.subheader("UWAGI I STAN TECHNICZNY")
+            uwagi = st.text_area("Opisz ewentualne usterki, braki lub uwagi do pojazdu...")
             st.markdown('</div>', unsafe_allow_html=True)
 
             # Przycisk wysyłki
-            if st.form_submit_button("ZATWIERDŹ I WYŚLIJ PROTOKÓŁ"):
+            st.markdown("<br>", unsafe_allow_html=True)
+            if st.form_submit_button("ZATWIERDŹ I WYŚLIJ PROTOKÓŁ DO BAZY"):
                 if not nr_rej:
-                    st.error("Proszę wpisać numer rejestracyjny!")
+                    st.error("BŁĄD: Podaj numer rejestracyjny pojazdu!")
                 else:
-                    st.success(f"Protokół dla pojazdu {nr_rej} został pomyślnie wysłany!")
+                    st.success(f"PROTOKÓŁ DLA {nr_rej} ZOSTAŁ POMYŚLNIE WYGENEROWANY!")
                     st.balloons()
     else:
-        st.error("BŁĄD: System nie może połączyć się z bazą pytań na GitHub. Sprawdź TOKEN w Secrets.")
+        st.error("BŁĄD KRYTYCZNY: Brak połączenia z GitHub (Sprawdź Token w Secrets).")
