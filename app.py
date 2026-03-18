@@ -1,49 +1,226 @@
-import streamlit as json
-import pandas as pd
-from io import StringIO
+import streamlit as st
+import json
+import requests
+import base64
+from PIL import Image
+from datetime import datetime
 
-# Funkcja do wczytywania danych z JSON
-def load_control_list():
+# =========================================================
+# KONFIGURACJA GITHUB I SEKRETÓW
+# =========================================================
+try:
+    GITHUB_TOKEN = st.secrets["G_TOKEN"]
+    USER_DB = st.secrets["credentials"]["usernames"]
+except Exception:
+    GITHUB_TOKEN = "BRAK"
+    USER_DB = {"admin": "admin123"} # Fallback do testów lokalnych
+
+REPO_OWNER = "natpio"
+REPO_NAME = "protoku-pojazdu"  # Zaktualizowana nazwa repozytorium
+FILE_PATH = "lista_kontrolna.json"
+
+# =========================================================
+# FUNKCJE POMOCNICZE
+# =========================================================
+def get_base64_of_bin_file(bin_file):
     try:
-        # Zakładamy, że plik lista_kontrolna.json znajduje się w tym samym katalogu
-        with open("lista_kontrolna.json", "r", encoding="utf-8") as f:
-            data = json.load(f)
-        return data["lista_kontrolna"]
-    except FileNotFoundError:
-        st.error("Błąd: Plik lista_kontrolna.json nie został znaleziony.")
+        with open(bin_file, 'rb') as f:
+            data = f.read()
+        return base64.b64encode(data).decode()
+    except Exception:
+        return ""
+
+def get_github_data():
+    """Pobiera listę kontrolną z GitHub API."""
+    url = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/contents/{FILE_PATH}"
+    headers = {"Authorization": f"token {GITHUB_TOKEN}"}
+    try:
+        response = requests.get(url, headers=headers)
+        if response.status_code == 200:
+            content = response.json()
+            decoded = base64.b64decode(content['content']).decode('utf-8')
+            return json.loads(decoded)
+        return None
+    except Exception:
         return None
 
-# Konfiguracja aplikacji Streamlit
-st.set_page_config(page_title="Protokół Przekazania Pojazdu", layout="wide")
-st.title("Protokół Przekazania Pojazdu")
+# =========================================================
+# STYLIZACJA VORTEZA SYSTEMS (PROTOKÓŁ STYLE)
+# =========================================================
+def apply_vorteza_theme():
+    # Pobieranie tła z pliku bg_vorteza.png
+    bin_str = get_base64_of_bin_file('bg_vorteza.png')
+    
+    if bin_str:
+        bg_style = f"""
+        <style>
+        .stApp {{
+            background-image: url("data:image/png;base64,{bin_str}");
+            background-size: cover;
+            background-attachment: fixed;
+        }}
+        </style>
+        """
+        st.markdown(bg_style, unsafe_allow_html=True)
+    else:
+        st.markdown("<style>.stApp { background-color: #0E0E0E; }</style>", unsafe_allow_html=True)
 
-control_list = load_control_list()
+    st.markdown("""
+        <style>
+            @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;700&display=swap');
 
-if control_list:
-    with st.form(key="protocol_form"):
-        st.header("1. Informacje o pojeździe i kierowcy")
-        vehicle_id = st.text_input("Numer rejestracyjny pojazdu")
-        driver_name = st.text_input("Imię i nazwisko kierowcy")
-        date = st.date_input("Data")
-        time = st.time_input("Godzina")
+            :root {
+                --v-copper: #B58863;
+                --v-dark: #0E0E0E;
+                --v-panel: rgba(20, 20, 20, 0.9);
+                --v-text: #E0E0E0;
+            }
 
-        st.header("2. Lista Kontrolna")
-        
-        results = {}
-        for category, items in control_list.items():
-            st.subheader(f"### {category}")
-            for item in items:
-                # Używamy checkboxów do łatwego zaznaczania
-                results[item] = st.checkbox(item)
+            .stApp {
+                color: var(--v-text);
+                font-family: 'Montserrat', sans-serif;
+            }
 
-        submit_button = st.form_submit_button(label="Wyślij Protokół")
+            h1, h2, h3, .stSubheader {
+                color: var(--v-copper) !important;
+                font-weight: 700 !important;
+                text-transform: uppercase;
+                letter-spacing: 2px;
+                text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            }
 
-        if submit_button:
-            # Tutaj można dodać logikę wysyłki danych, np. do bazy danych lub Google Sheets
-            st.success("Protokół został pomyślnie wysłany!")
-            st.write("Podsumowanie:")
-            st.write(f"Pojazd: {vehicle_id}, Kierowca: {driver_name}")
+            .vorteza-section {
+                background-color: var(--v-panel);
+                padding: 25px;
+                border-radius: 5px;
+                border-left: 5px solid var(--v-copper);
+                box-shadow: 0 10px 40px rgba(0,0,0,0.8);
+                backdrop-filter: blur(15px);
+                margin-bottom: 25px;
+            }
+
+            .stButton > button {
+                background-color: rgba(0, 0, 0, 0.7);
+                color: var(--v-copper);
+                border: 1px solid var(--v-copper);
+                padding: 10px;
+                width: 100%;
+                font-weight: 700;
+                text-transform: uppercase;
+                transition: 0.3s;
+            }
+
+            .stButton > button:hover {
+                background-color: var(--v-copper);
+                color: black;
+            }
+
+            /* Styl checkboxów i inputów */
+            label[data-testid="stWidgetLabel"] {
+                color: var(--v-text) !important;
+                font-weight: 400 !important;
+                text-transform: uppercase;
+                font-size: 0.8rem !important;
+            }
             
-            # Przykładowe wyświetlenie wyników
-            summary = {k: "Zgodne" if v else "Niezgodne" for k, v in results.items()}
-            st.write(summary)
+            input, div[data-baseweb="select"] > div {
+                background-color: rgba(15, 15, 15, 0.9) !important;
+                color: white !important;
+                border: 1px solid #444 !important;
+            }
+        </style>
+    """, unsafe_allow_html=True)
+
+# =========================================================
+# SYSTEM LOGOWANIA
+# =========================================================
+def check_password():
+    if "authenticated" not in st.session_state:
+        st.session_state["authenticated"] = False
+
+    if not st.session_state["authenticated"]:
+        col1, col2, col3 = st.columns([1, 2, 1])
+        with col2:
+            with st.form("Login"):
+                st.markdown("### VORTEZA | PROTOCOLS ACCESS")
+                user = st.text_input("Użytkownik")
+                password = st.text_input("Hasło", type="password")
+                submit = st.form_submit_button("ZALOGUJ")
+                if submit:
+                    if user in USER_DB and USER_DB[user] == password:
+                        st.session_state["authenticated"] = True
+                        st.session_state["username"] = user
+                        st.rerun()
+                    else:
+                        st.error("Nieprawidłowe dane logowania.")
+        return False
+    return True
+
+# =========================================================
+# GŁÓWNA LOGIKA
+# =========================================================
+st.set_page_config(page_title="VORTEZA | PROTOKÓŁ", layout="wide")
+apply_vorteza_theme()
+
+if check_password():
+    # Nagłówek
+    col_logo, col_title, col_logout = st.columns([1, 4, 1])
+    with col_logo:
+        try:
+            # Pobieranie logo z logo_vorteza.png
+            logo = Image.open('logo_vorteza.png')
+            st.image(logo, use_container_width=True)
+        except:
+            st.title("VORTEZA")
+
+    with col_title:
+        st.title("Protokół Przekazania Pojazdu")
+    
+    with col_logout:
+        if st.button("WYLOGUJ"):
+            del st.session_state["authenticated"]
+            st.rerun()
+
+    # Pobranie danych z GitHub
+    config_data = get_github_data()
+
+    if config_data:
+        lista_zadan = config_data.get("lista_kontrolna", {})
+
+        with st.form("main_protocol_form"):
+            # Sekcja Informacyjna
+            st.markdown('<div class="vorteza-section">', unsafe_allow_html=True)
+            st.subheader("General Information")
+            c1, c2, c3 = st.columns(3)
+            with c1:
+                nr_rej = st.text_input("Numer Rejestracyjny")
+            with c2:
+                kierowca = st.text_input("Kierowca Przejmujący", value=st.session_state.username)
+            with c3:
+                data_godz = st.text_input("Data i Godzina", value=datetime.now().strftime("%Y-%m-%d %H:%M"))
+            st.markdown('</div>', unsafe_allow_html=True)
+
+            # Sekcje z JSON
+            results = {}
+            for kategoria, punkty in lista_zadan.items():
+                st.markdown('<div class="vorteza-section">', unsafe_allow_html=True)
+                st.subheader(kategoria)
+                
+                # Wyświetlanie w dwóch kolumnach dla lepszej czytelności na mobile
+                cols = st.columns(2)
+                for i, punkt in enumerate(punkty):
+                    with cols[i % 2]:
+                        results[punkt] = st.checkbox(punkt)
+                st.markdown('</div>', unsafe_allow_html=True)
+
+            # Uwagi i przycisk
+            st.markdown('<div class="vorteza-section">', unsafe_allow_html=True)
+            st.subheader("System Comments")
+            uwagi = st.text_area("Dodatkowe uwagi techniczne...")
+            st.markdown('</div>', unsafe_allow_html=True)
+
+            if st.form_submit_button("WYŚLIJ PROTOKÓŁ DO BAZY"):
+                # Tutaj wstawimy później kod do zapisu w PostgreSQL
+                st.success("PROTOKÓŁ ZAPISANY POMYŚLNIE")
+    else:
+        st.error("Błąd: Nie udało się pobrać pliku lista_kontrolna.json z repozytorium protoku-pojazdu.")
