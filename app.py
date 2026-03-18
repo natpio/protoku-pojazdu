@@ -6,28 +6,31 @@ from PIL import Image
 from datetime import datetime
 
 # =========================================================
-# KONFIGURACJA GITHUB I SEKRETÓW
+# 1. KONFIGURACJA DOSTĘPU I UŻYTKOWNIKÓW
 # =========================================================
-# Pobieranie danych z Streamlit Cloud Secrets
+# Dane logowania wpisane bezpośrednio w kod (skoro Secrets sprawiały problem)
+USER_DB = {
+    "admin": "vorteza",
+    "kierowca1": "CrystalBridge116"
+}
+
+# Próba pobrania TOKENU z Secrets - upewnij się, że w Secrets masz:
+# [G_TOKEN]
+# G_TOKEN = "ghp_..."
 try:
-    # Twoja struktura: [G_TOKEN] -> G_TOKEN = "..."
     GITHUB_TOKEN = st.secrets["G_TOKEN"]["G_TOKEN"]
-    # Twoja struktura: [credentials.usernames] -> admin = "..."
-    USER_DB = st.secrets["credentials"]["usernames"]
-except Exception as e:
-    st.warning("⚠️ Brak konfiguracji Secrets. Używam trybu demo.")
-    GITHUB_TOKEN = "BRAK"
-    USER_DB = {"admin": "vorteza"} 
+except Exception:
+    GITHUB_TOKEN = "BRAK_TOKENU"
 
 REPO_OWNER = "natpio"
 REPO_NAME = "protoku-pojazdu"
 FILE_PATH = "lista_kontrolna.json"
 
 # =========================================================
-# FUNKCJE POMOCNICZE (GITHUB & ASSETS)
+# 2. FUNKCJE SYSTEMOWE (GITHUB & ASSETS)
 # =========================================================
 def get_base64_of_bin_file(bin_file):
-    """Konwertuje obraz na base64, aby użyć go jako tło CSS."""
+    """Konwertuje plik graficzny na format base64 dla CSS."""
     try:
         with open(bin_file, 'rb') as f:
             data = f.read()
@@ -36,7 +39,7 @@ def get_base64_of_bin_file(bin_file):
         return ""
 
 def get_github_data():
-    """Pobiera plik JSON z checklistą z Twojego repozytorium."""
+    """Pobiera plik JSON z checklistą bezpośrednio z GitHub API."""
     url = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/contents/{FILE_PATH}"
     headers = {"Authorization": f"token {GITHUB_TOKEN}"}
     try:
@@ -46,17 +49,15 @@ def get_github_data():
             decoded = base64.b64decode(content['content']).decode('utf-8')
             return json.loads(decoded)
         else:
-            st.error(f"❌ Błąd GitHub API: {response.status_code}. Sprawdź Token w Secrets.")
             return None
-    except Exception as e:
-        st.error(f"❌ Błąd połączenia: {e}")
+    except:
         return None
 
 # =========================================================
-# STYLIZACJA VORTEZA FLOW (SQM STYLE)
+# 3. STYLIZACJA VORTEZA SYSTEMS (Pełny Design)
 # =========================================================
 def apply_vorteza_theme():
-    # Tło aplikacji
+    # Tło z pliku bg_vorteza.png
     bin_str = get_base64_of_bin_file('bg_vorteza.png')
     if bin_str:
         st.markdown(f"""
@@ -71,14 +72,14 @@ def apply_vorteza_theme():
     else:
         st.markdown("<style>.stApp { background-color: #0E0E0E; }</style>", unsafe_allow_html=True)
 
-    # Stylizacja interfejsu (Czcionki, Kolory, Panele)
+    # Stylizacja elementów UI
     st.markdown("""
         <style>
             @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;700&display=swap');
 
             :root {
                 --v-copper: #B58863;
-                --v-panel: rgba(20, 20, 20, 0.9);
+                --v-panel: rgba(15, 15, 15, 0.92);
                 --v-text: #E0E0E0;
             }
 
@@ -95,81 +96,87 @@ def apply_vorteza_theme():
                 text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
             }
 
-            /* Styl kontenerów (sekcji) */
             .vorteza-section {
                 background-color: var(--v-panel);
-                padding: 25px;
-                border-radius: 5px;
+                padding: 30px;
+                border-radius: 4px;
                 border-left: 5px solid var(--v-copper);
-                box-shadow: 0 10px 40px rgba(0,0,0,0.8);
+                box-shadow: 0 10px 40px rgba(0,0,0,0.7);
                 backdrop-filter: blur(15px);
                 margin-bottom: 25px;
             }
 
-            /* Styl przycisków */
             .stButton > button {
-                background-color: rgba(0, 0, 0, 0.7);
+                background-color: rgba(0, 0, 0, 0.5);
                 color: var(--v-copper);
                 border: 1px solid var(--v-copper);
                 padding: 15px;
                 width: 100%;
                 font-weight: 700;
                 text-transform: uppercase;
-                transition: 0.3s;
+                transition: 0.3s ease;
             }
+
             .stButton > button:hover {
                 background-color: var(--v-copper);
                 color: black;
+                box-shadow: 0 0 15px var(--v-copper);
             }
 
-            /* Checkboxy i Inputy */
-            input, div[data-baseweb="select"] > div, div[data-baseweb="input"] > div {
-                background-color: rgba(15, 15, 15, 0.9) !important;
+            /* Styl inputów i selectboxów */
+            input, div[data-baseweb="input"] > div, div[data-baseweb="select"] > div {
+                background-color: #000 !important;
                 color: white !important;
-                border: 1px solid #444 !important;
+                border: 1px solid #333 !important;
             }
-            
+
             label[data-testid="stWidgetLabel"] {
                 color: var(--v-copper) !important;
                 font-weight: 700 !important;
                 text-transform: uppercase;
+                font-size: 0.85rem !important;
+            }
+
+            /* Custom checkbox style */
+            .stCheckbox > label {
+                color: #FFF !important;
             }
         </style>
     """, unsafe_allow_html=True)
 
 # =========================================================
-# LOGIKA LOGOWANIA
+# 4. LOGIKA LOGOWANIA
 # =========================================================
 def check_password():
     if "auth" not in st.session_state:
         st.session_state.auth = False
 
     if not st.session_state.auth:
-        _, col2, _ = st.columns([1, 2, 1])
+        col1, col2, col3 = st.columns([1, 2, 1])
         with col2:
             st.markdown('<div class="vorteza-section">', unsafe_allow_html=True)
             st.subheader("VORTEZA | SECURE ACCESS")
             u = st.text_input("Użytkownik")
             p = st.text_input("Hasło", type="password")
-            if st.button("AUTORYZUJ"):
+            if st.button("AUTORYZUJ WEJŚCIE"):
                 if u in USER_DB and USER_DB[u] == p:
                     st.session_state.auth = True
                     st.session_state.username = u
                     st.rerun()
                 else:
-                    st.error("Nieprawidłowe dane logowania.")
+                    st.error("ODMOWA DOSTĘPU: Nieprawidłowe dane.")
             st.markdown('</div>', unsafe_allow_html=True)
         return False
     return True
 
 # =========================================================
-# GŁÓWNA APLIKACJA
+# 5. GŁÓWNA LOGIKA APLIKACJI (Główny ekran)
 # =========================================================
-st.set_page_config(page_title="VORTEZA FLOW | PROTOKÓŁ", layout="wide")
+st.set_page_config(page_title="VORTEZA | SYSTEM PROTOKOŁÓW", layout="wide")
 apply_vorteza_theme()
 
 if check_password():
-    # --- Nagłówek ---
+    # --- Nagłówek i Nawigacja ---
     col_logo, col_title, col_logout = st.columns([1, 4, 1])
     with col_logo:
         try:
@@ -180,7 +187,7 @@ if check_password():
 
     with col_title:
         st.markdown("<br>", unsafe_allow_html=True)
-        st.title("Protokół Przekazania Pojazdu")
+        st.title("VORTEZA FLOW | Protokół Pojazdu")
     
     with col_logout:
         st.markdown("<br><br>", unsafe_allow_html=True)
@@ -188,42 +195,49 @@ if check_password():
             st.session_state.auth = False
             st.rerun()
 
-    # --- Pobieranie Checklisty ---
+    # --- Pobieranie Danych z GitHub ---
     config = get_github_data()
 
     if config:
-        with st.form("formularz_protokolu"):
-            # 1. Dane podstawowe
+        with st.form("main_protocol_form"):
+            # 1. Dane Operacyjne
             st.markdown('<div class="vorteza-section">', unsafe_allow_html=True)
-            st.subheader("Informacje o pojeździe")
+            st.subheader("1. Identyfikacja i Przebieg")
             c1, c2, c3 = st.columns(3)
             with c1:
                 nr_rej = st.text_input("Numer Rejestracyjny")
             with c2:
-                kierowca = st.text_input("Kierowca", value=st.session_state.username)
+                kierowca = st.text_input("Kierowca Przejmujący", value=st.session_state.username)
             with c3:
-                mileage = st.number_input("Przebieg (KM)", step=1)
+                mileage = st.number_input("Aktualny Przebieg (KM)", value=0, step=1)
             st.markdown('</div>', unsafe_allow_html=True)
 
-            # 2. Dynamiczne sekcje z JSON
+            # 2. Dynamiczne Generowanie Checklisty z JSON
             for kategoria, punkty in config["lista_kontrolna"].items():
                 st.markdown('<div class="vorteza-section">', unsafe_allow_html=True)
                 st.subheader(kategoria)
+                
+                # Wyświetlanie punktów w 2 kolumnach dla lepszej czytelności
                 cols = st.columns(2)
-                for i, punkt in enumerate(punkty):
-                    with cols[i % 2]:
-                        st.checkbox(punkt, key=punkt)
+                for idx, punkt in enumerate(punkty):
+                    with cols[idx % 2]:
+                        st.checkbox(punkt, key=f"chk_{punkt}")
                 st.markdown('</div>', unsafe_allow_html=True)
 
-            # 3. Uwagi końcowe
+            # 3. Uwagi i Zdjęcia (Opcjonalne)
             st.markdown('<div class="vorteza-section">', unsafe_allow_html=True)
-            st.subheader("Uwagi i Stan Systemu")
-            uwagi = st.text_area("Opisz ewentualne usterki...")
+            st.subheader("3. Uwagi Techniczne")
+            st.text_area("Opisz zauważone uszkodzenia lub uwagi do stanu technicznego...", height=150)
+            st.file_uploader("Dodaj zdjęcia (opcjonalnie)", accept_multiple_files=True)
             st.markdown('</div>', unsafe_allow_html=True)
 
-            # Przycisk wysyłki
-            if st.form_submit_button("ZATWIERDŹ I WYŚLIJ PROTOKÓŁ"):
-                # Tutaj w przyszłości dodamy logikę zapisu do bazy SQL
-                st.success("PROTOKÓŁ ZOSTAŁ POMYŚLNIE ZAPISANY W SYSTEMIE VORTEZA.")
+            # 4. Zatwierdzenie
+            st.markdown("<br>", unsafe_allow_html=True)
+            submit = st.form_submit_button("ZATWIERDŹ I WYŚLIJ PROTOKÓŁ")
+            
+            if submit:
+                # Tu w przyszłości podepniemy bazę PostgreSQL
+                st.success(f"PROTOKÓŁ DLA POJAZDU {nr_rej} ZOSTAŁ WYGENEROWANY I PRZESŁANY DO SYSTEMU.")
+                st.balloons()
     else:
-        st.error("Błąd krytyczny: Nie udało się pobrać konfiguracji protokołu.")
+        st.error("BŁĄD SYSTEMU: Nie można pobrać listy kontrolnej z GitHub. Sprawdź TOKEN w Secrets.")
