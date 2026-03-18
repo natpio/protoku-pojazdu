@@ -12,7 +12,6 @@ USER_DB = {
     "kierowca1": "CrystalBridge116"
 }
 
-# Pobieranie tokenu z bezpiecznych ustawień Streamlit (Secrets)
 try:
     GITHUB_TOKEN = st.secrets["G_TOKEN"]["G_TOKEN"]
 except Exception:
@@ -47,24 +46,23 @@ def get_data():
         return None
 
 # =========================================================
-# 3. DESIGN: VORTEZA - BASE "ORBITRON EDITION"
+# 3. DESIGN: VORTEZA - BASE "LOGO-MATCH EDITION"
 # =========================================================
 def apply_vorteza_design():
     bg_base64 = get_base64('bg_vorteza.png')
     
     st.markdown(f"""
         <style>
-        /* IMPORT CZCIONKI ORBITRON I MONTSERRAT */
-        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Montserrat:wght@300;400;700&display=swap');
+        /* IMPORT CZCIONEK: MICHROMA (Szeroka jak w logo) i MONTSERRAT */
+        @import url('https://fonts.googleapis.com/css2?family=Michroma&family=Montserrat:wght@400;700;900&display=swap');
         
-        /* GŁÓWNE TŁO */
         .stApp {{
-            background: linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.6)), url("data:image/png;base64,{bg_base64}");
+            background: linear-gradient(rgba(0,0,0,0.65), rgba(0,0,0,0.65)), url("data:image/png;base64,{bg_base64}");
             background-size: cover;
             background-attachment: fixed;
         }}
 
-        /* FIX SIDEBAR ICON - Ukrywa błąd tekstowy 'keyboard_double_arrow' */
+        /* FIX SIDEBAR ICON */
         [data-testid="sidebar-button"] {{
             color: transparent !important;
             font-size: 0px !important;
@@ -76,47 +74,53 @@ def apply_vorteza_design():
             visibility: visible;
         }}
 
-        /* TYPOGRAFIA MONTSERRAT DLA TREŚCI */
+        /* GŁÓWNY NAGŁÓWEK - STYLIZOWANY NA LOGO */
+        .logo-font {{
+            font-family: 'Michroma', sans-serif !important;
+            color: #B58863 !important;
+            text-align: center;
+            font-size: 2.2rem !important;
+            letter-spacing: 8px !important; /* Szerokie rozstawienie jak w logo */
+            text-transform: uppercase;
+            font-weight: bold;
+            margin-bottom: 40px;
+            text-shadow: 2px 2px 10px rgba(0,0,0,0.8);
+        }}
+
+        /* POZOSTAŁE NAGŁÓWKI (Kategorie) */
+        h2, h3, .stSubheader {{
+            font-family: 'Michroma', sans-serif !important;
+            color: #B58863 !important;
+            font-size: 1.1rem !important;
+            letter-spacing: 3px !important;
+            text-transform: uppercase;
+        }}
+
+        /* TREŚĆ I CHECKBOXY */
         .stApp, p, label, span, div {{
             font-family: 'Montserrat', sans-serif !important;
             color: #FFFFFF !important;
-            text-shadow: 1px 1px 3px rgba(0,0,0,0.9);
         }}
 
-        /* NAGŁÓWKI ORBITRON (Powrót do poprzedniego stylu) */
-        h1, h2, h3, .stSubheader {{
-            font-family: 'Orbitron', sans-serif !important;
-            color: #B58863 !important;
-            text-transform: uppercase;
-            letter-spacing: 3px !important;
-            font-weight: 700 !important;
-        }}
-
-        /* KARTY DASHBOARDU */
+        /* KARTY */
         .vorteza-card {{
-            background: rgba(10, 10, 10, 0.93);
-            border: 1px solid rgba(181, 136, 99, 0.25);
+            background: rgba(10, 10, 10, 0.94);
+            border: 1px solid rgba(181, 136, 99, 0.2);
             border-left: 5px solid #B58863;
-            border-radius: 10px;
+            border-radius: 4px;
             padding: 25px;
             margin-bottom: 25px;
             backdrop-filter: blur(15px);
             box-shadow: 0 15px 40px rgba(0,0,0,0.8);
-            transition: 0.3s ease;
         }}
 
-        .vorteza-card:hover {{
-            border-color: #B58863;
-            box-shadow: 0 15px 45px rgba(181, 136, 99, 0.15);
-        }}
-
-        /* INTERAKTYWNE WIERSZE CHECKBOXA */
+        /* WIERSZE CHECKBOXA */
         div[data-testid="stCheckbox"] {{
             background: rgba(255,255,255,0.03);
             padding: 12px 18px;
-            border-radius: 6px;
+            border-radius: 2px;
             margin-bottom: 6px;
-            transition: all 0.3s ease;
+            transition: 0.3s;
         }}
 
         div[data-testid="stCheckbox"]:hover {{
@@ -124,40 +128,29 @@ def apply_vorteza_design():
             transform: translateX(10px);
         }}
 
-        /* PRZYCISK SIGNATURE (ORBITRON) */
+        /* PRZYCISK */
         .stButton > button {{
-            background: linear-gradient(90deg, #8B6B4F 0%, #B58863 50%, #8B6B4F 100%);
+            background-color: #B58863 !important;
             color: white !important;
-            font-family: 'Orbitron', sans-serif !important;
-            font-weight: 700 !important;
+            font-family: 'Michroma', sans-serif !important;
+            font-size: 0.9rem !important;
             border: none !important;
-            padding: 22px !important;
-            border-radius: 8px !important;
+            padding: 20px !important;
+            border-radius: 2px !important;
             text-transform: uppercase;
-            letter-spacing: 2px;
+            letter-spacing: 4px;
             width: 100%;
-            transition: 0.4s;
             box-shadow: 0 10px 30px rgba(0,0,0,0.5);
         }}
         
         .stButton > button:hover {{
-            box-shadow: 0 0 40px rgba(181, 136, 99, 0.5);
-            filter: brightness(1.2);
-            transform: scale(1.01);
+            background-color: #8B6B4F !important;
+            box-shadow: 0 0 40px rgba(181, 136, 99, 0.4);
         }}
 
-        /* ELEMENTY INPUT */
-        input, div[data-baseweb="input"] > div, textarea {{
-            background: rgba(255,255,255,0.05) !important;
-            border: 1px solid rgba(181, 136, 99, 0.3) !important;
-            border-radius: 8px !important;
-            color: white !important;
-        }}
-
-        /* SIDEBAR */
         section[data-testid="stSidebar"] {{
             background-color: rgba(5, 5, 5, 0.98) !important;
-            border-right: 1px solid rgba(181, 136, 99, 0.2);
+            border-right: 1px solid rgba(181, 136, 99, 0.15);
         }}
 
         div[data-testid="stForm"] {{ border: none !important; padding: 0 !important; }}
@@ -165,7 +158,7 @@ def apply_vorteza_design():
     """, unsafe_allow_html=True)
 
 # =========================================================
-# 4. GŁÓWNA LOGIKA VORTEZA - BASE
+# 4. LOGIKA APLIKACJI
 # =========================================================
 st.set_page_config(page_title="VORTEZA-BASE", layout="wide")
 apply_vorteza_design()
@@ -175,18 +168,17 @@ if "auth" not in st.session_state:
 
 # --- LOGOWANIE ---
 if not st.session_state.auth:
-    _, col, _ = st.columns([1, 1.3, 1])
+    _, col, _ = st.columns([1, 1.2, 1])
     with col:
         st.markdown("<br><br><br>", unsafe_allow_html=True)
         st.markdown('<div class="vorteza-card" style="text-align:center;">', unsafe_allow_html=True)
         st.subheader("BASE ACCESS")
         u = st.text_input("Operator")
-        p = st.text_input("Password", type="password")
-        if st.button("AUTHORIZE SYSTEM"):
+        p = st.text_input("Security Key", type="password")
+        if st.button("AUTHORIZE"):
             if u in USER_DB and USER_DB[u] == p:
                 st.session_state.auth, st.session_state.user = True, u
                 st.rerun()
-            else: st.error("Access Denied")
         st.markdown('</div>', unsafe_allow_html=True)
 
 # --- PANEL OPERACYJNY ---
@@ -197,17 +189,16 @@ else:
         st.markdown("---")
         st.write(f"👤 **OPERATOR:** {st.session_state.user}")
         st.write(f"📅 **DATE:** {datetime.now().strftime('%d/%m/%Y')}")
-        st.markdown("<br>", unsafe_allow_html=True)
-        if st.button("LOGOUT"):
+        if st.button("LOGOUT SYSTEM"):
             st.session_state.auth = False
             st.rerun()
 
     config = get_data()
     if config:
-        st.markdown("<h1 style='text-align: center; margin-bottom: 40px;'>VORTEZA - BASE DASHBOARD</h1>", unsafe_allow_html=True)
+        # GŁÓWNY NAGŁÓWEK STYLIZOWANY NA LOGO
+        st.markdown('<p class="logo-font">VORTEZA - BASE</p>', unsafe_allow_html=True)
         
-        with st.form("base_hub"):
-            # IDENTYFIKACJA
+        with st.form("main_form"):
             st.markdown('<div class="vorteza-card">', unsafe_allow_html=True)
             st.subheader("Vehicle Data")
             c1, c2 = st.columns(2)
@@ -215,7 +206,6 @@ else:
             km = c2.number_input("MILEAGE (KM)", step=1, value=0)
             st.markdown('</div>', unsafe_allow_html=True)
 
-            # LISTA (GRID)
             grid = st.columns(2)
             for i, (kat, punkty) in enumerate(config["lista_kontrolna"].items()):
                 with grid[i % 2]:
@@ -224,13 +214,11 @@ else:
                         st.checkbox(p_text, key=f"p_{p_text}")
                     st.markdown('</div>', unsafe_allow_html=True)
 
-            # UWAGI
             st.markdown('<div class="vorteza-card">', unsafe_allow_html=True)
-            st.subheader("Technical Remarks")
+            st.subheader("Technical Notes")
             st.text_area("Observations...", height=100)
             st.markdown('</div>', unsafe_allow_html=True)
 
-            st.markdown("<br>", unsafe_allow_html=True)
-            if st.form_submit_button("SUBMIT PROTOCOL"):
-                if not rej: st.error("Plate required")
-                else: st.success("SUCCESSFUL TRANSMISSION"); st.balloons()
+            if st.form_submit_button("SUBMIT AND ENCRYPT PROTOCOL"):
+                if not rej: st.error("Plate number required!")
+                else: st.success("TRANSMISSION SUCCESSFUL"); st.balloons()
