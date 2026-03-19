@@ -8,7 +8,7 @@ from datetime import datetime
 from google.oauth2.service_account import Credentials
 
 # =========================================================
-# 1. KONFIGURACJA I POBIERANIE DANYCH
+# 1. KONFIGURACJA I ZASOBY
 # =========================================================
 try:
     GITHUB_TOKEN = st.secrets["G_TOKEN"]["G_TOKEN"]
@@ -56,7 +56,7 @@ def save_to_google_sheets(row_data):
     except: return False
 
 # =========================================================
-# 2. DESIGN VORTEZA 12.0 - FIX WYŚWIETLANIA
+# 2. DESIGN VORTEZA 13.0 - SIDEBAR & CLEAN GRID
 # =========================================================
 def apply_vorteza_design():
     st.markdown("""
@@ -71,6 +71,13 @@ def apply_vorteza_design():
             text-align: center;
             letter-spacing: 4px;
             padding: 20px;
+            text-transform: uppercase;
+        }
+
+        /* Styl Sidebar */
+        section[data-testid="stSidebar"] {
+            background-color: rgba(10, 10, 10, 0.98) !important;
+            border-right: 1px solid #B58863;
         }
 
         .card-container {
@@ -78,48 +85,33 @@ def apply_vorteza_design():
             border-left: 5px solid #B58863;
             border-radius: 4px;
             padding: 15px;
-            margin-bottom: 20px;
+            margin-bottom: 5px;
             color: white;
         }
 
         .card-alert { border-left: 5px solid #FF4B4B !important; }
 
-        .tag {
-            display: inline-block;
-            padding: 2px 8px;
-            border-radius: 4px;
-            font-size: 0.75rem;
-            margin: 3px;
-            background: rgba(255,255,255,0.1);
-            border: 1px solid rgba(255,255,255,0.2);
-        }
-
-        .tag-fault {
-            background: rgba(255, 75, 75, 0.2);
-            border: 1px solid #FF4B4B;
-            color: #FF4B4B;
-        }
-
-        h3, p, span { font-family: 'Montserrat', sans-serif; }
+        h3, p, span, label { font-family: 'Montserrat', sans-serif !important; }
         #MainMenu, footer, header {visibility: hidden;}
+        .stDeployButton {display:none;}
         </style>
     """, unsafe_allow_html=True)
 
 # =========================================================
-# 3. LOGIKA APLIKACJI
+# 3. GŁÓWNA LOGIKA
 # =========================================================
-st.set_page_config(page_title="VORTEZA COMMAND", layout="wide")
+st.set_page_config(page_title="VORTEZA LOGISTICS", layout="wide")
 apply_vorteza_design()
 
 if "auth" not in st.session_state: st.session_state.auth = False
 
-# LOGOWANIE
+# --- LOGOWANIE ---
 if not st.session_state.auth:
     col1, col2, col3 = st.columns([1, 1.5, 1])
     with col2:
-        st.markdown("<h1 class='vorteza-header'>VORTEZA ACCESS</h1>", unsafe_allow_html=True)
-        u = st.text_input("OPERATOR")
-        p = st.text_input("KEY", type="password")
+        st.markdown("<h1 class='vorteza-header'>SYSTEM ACCESS</h1>", unsafe_allow_html=True)
+        u = st.text_input("OPERATOR ID")
+        p = st.text_input("SECURITY KEY", type="password")
         if st.button("AUTHORIZE"):
             users = st.secrets.get("USERS", {})
             if u in users and str(users[u]) == p:
@@ -127,81 +119,91 @@ if not st.session_state.auth:
                 st.rerun()
             else: st.error("Access Denied")
 
-# PANEL GŁÓWNY
+# --- PANEL PO ZALOGOWANIU ---
 else:
     is_dispatcher = "dyspozytor" in st.session_state.user.lower() or st.session_state.user == "admin"
     
+    # --- PRZYWRÓCONY PASEK BOCZNY ---
     with st.sidebar:
-        st.markdown(f"<p style='color:#B58863'>OPERATOR: {st.session_state.user.upper()}</p>", unsafe_allow_html=True)
-        if st.button("LOGOUT"):
+        st.markdown(f"<p style='color:#B58863; font-family:Michroma; font-size:0.8rem;'>{st.session_state.user.upper()}</p>", unsafe_allow_html=True)
+        st.markdown("---")
+        
+        if is_dispatcher:
+            st.markdown("<p style='color:#B58863; font-size:0.7rem; font-weight:bold;'>FILTRY</p>", unsafe_allow_html=True)
+            df_full = load_from_google_sheets()
+            if not df_full.empty:
+                plates = ["WSZYSTKIE"] + list(df_full['Numer Rejestracyjny'].unique())
+                f_plate = st.selectbox("POJAZD", plates)
+                f_alerts = st.checkbox("TYLKO ALERTY")
+            if st.button("ODŚWIEŻ DANE"): st.rerun()
+            st.markdown("---")
+        
+        if st.button("WYLOGUJ"):
             st.session_state.auth = False
             st.rerun()
 
+    # --- WIDOK DYSPOZYTORA ---
     if is_dispatcher:
-        st.markdown("<h2 class='vorteza-header'>COMMAND CENTER</h2>", unsafe_allow_html=True)
-        df_full = load_from_google_sheets()
+        st.markdown("<h2 class='vorteza-header'>CENTRUM DYSPOZYTORA</h2>", unsafe_allow_html=True)
         
         if not df_full.empty:
-            # Szybkie statystyki na górze
-            total = len(df_full)
-            alerts = len(df_full[df_full['Wynik Kontroli'].str.contains("ALERT|USTERK", na=False, case=False)])
+            df = df_full.copy()
+            if f_plate != "WSZYSTKIE": df = df[df['Numer Rejestracyjny'] == f_plate]
+            if f_alerts: df = df[df['Wynik Kontroli'].str.contains("ALERT|USTERK", na=False, case=False)]
             
-            c1, c2 = st.columns(2)
-            c1.metric("TOTAL PROTOCOLS", total)
-            c2.metric("ACTIVE ALERTS", alerts, delta_color="inverse")
-            
-            st.markdown("---")
+            # Sortowanie: najnowsze na górze
+            df['Data i Godzina'] = pd.to_datetime(df['Data i Godzina'])
+            df = df.sort_values(by='Data i Godzina', ascending=False)
 
-            # Wyświetlanie kart
-            for _, row in df_full.iloc[::-1].iterrows(): # Najnowsze u góry
+            # Liczniki na górze
+            c1, c2 = st.columns(2)
+            c1.metric("PROTOKOŁY", len(df))
+            c2.metric("ALERTY", len(df[df['Wynik Kontroli'].str.contains("ALERT|USTERK", na=False, case=False)]))
+
+            for _, row in df.iterrows():
                 status_raw = str(row.get('Wynik Kontroli', ''))
                 is_alert = any(word in status_raw.upper() for word in ["ALERT", "USTERK", "BRAK"])
                 card_class = "card-container card-alert" if is_alert else "card-container"
                 
-                # Renderowanie karty jako czysty markdown + małe wstawki HTML dla stabilności
-                with st.container():
-                    st.markdown(f"""
-                    <div class="{card_class}">
-                        <div style="display:flex; justify-content:space-between; font-family:'Michroma';">
-                            <span style="font-size:1.2rem; color:#B58863;">{row.get('Numer Rejestracyjny', 'N/A')}</span>
-                            <span style="opacity:0.5;">{row.get('Data i Godzina', '')}</span>
-                        </div>
-                        <div style="margin: 10px 0; font-size: 0.8rem; opacity:0.8;">
-                            OPERATOR: <b>{row.get('Operator ID', 'N/A')}</b> | MILEAGE: <b>{row.get('Przebieg (km)', 0)} KM</b>
-                        </div>
+                # Renderowanie Kontenera Pojazdu
+                st.markdown(f"""
+                <div class="{card_class}">
+                    <div style="display:flex; justify-content:space-between; font-family:'Michroma';">
+                        <span style="font-size:1.1rem; color:#B58863;">{row.get('Numer Rejestracyjny', 'N/A')}</span>
+                        <span style="opacity:0.5; font-size:0.8rem;">{row.get('Data i Godzina').strftime('%Y-%m-%d %H:%M')}</span>
                     </div>
-                    """, unsafe_allow_html=True)
-                    
-                    # Szczegóły usterek (osobno, aby Streamlit ich nie "uciął")
-                    if is_alert:
-                        st.error("⚠️ WYKRYTO USTERKI / BRAKI:")
-                        # Próba wyciągnięcia listy po słowie ALERT: lub USTERKI:
-                        parts = status_raw.split(":")
-                        msg = parts[1] if len(parts) > 1 else status_raw
+                    <div style="margin-top: 5px; font-size: 0.8rem;">
+                        OP: <b>{row.get('Operator ID', 'N/A')}</b> | KM: <b>{row.get('Przebieg (km)', 0)}</b>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                # Wyświetlanie szczegółów pod kontenerem (bezpieczne renderowanie)
+                if is_alert:
+                    with st.expander("⚠️ SZCZEGÓŁY USTEREK", expanded=True):
+                        # Wyodrębnienie listy
+                        msg = status_raw.split(":")[-1] if ":" in status_raw else status_raw
                         items = msg.split(",")
-                        
-                        # Wyświetlamy jako tagi przy użyciu st.button (trik na czytelność) lub kolumn
-                        cols = st.columns(3)
-                        for i, item in enumerate(items):
-                            cols[i % 3].markdown(f"❌ `{item.strip()}`")
-                    else:
-                        st.success("✅ WSZYSTKIE SYSTEMY SPRAWNE")
-                    
-                    if row.get('Uwagi i Obserwacje'):
-                        st.info(f"**Notatka:** {row.get('Uwagi i Obserwacje')}")
-                    
-                    st.markdown("<br>", unsafe_allow_html=True)
-        else:
-            st.warning("Brak danych w arkuszu.")
+                        for item in items:
+                            st.markdown(f"<span style='color:#FF4B4B;'>• {item.strip()}</span>", unsafe_allow_html=True)
+                else:
+                    st.success("POJAZD SPRAWNY")
 
+                if row.get('Uwagi i Obserwacje'):
+                    st.caption(f"Notatka: {row.get('Uwagi i Obserwacje')}")
+                
+                st.markdown("---")
+        else:
+            st.info("Brak wpisów w bazie danych.")
+
+    # --- WIDOK KIEROWCY ---
     else:
-        # WIDOK KIEROWCY
-        st.markdown("<h2 class='vorteza-header'>VEHICLE CHECKLIST</h2>", unsafe_allow_html=True)
+        st.markdown("<h2 class='vorteza-header'>PROTOKÓŁ POJAZDU</h2>", unsafe_allow_html=True)
         data_gh, _ = get_remote_data()
         
         with st.form("driver_form", clear_on_submit=True):
-            r = st.text_input("NR REJESTRACYJNY")
-            k = st.number_input("PRZEBIEG (KM)", step=1)
+            r = st.text_input("NUMER REJESTRACYJNY").upper()
+            k = st.number_input("AKTUALNY PRZEBIEG (KM)", step=1)
             
             check_results = {}
             if data_gh and "lista_kontrolna" in data_gh:
@@ -213,9 +215,11 @@ else:
             
             u = st.text_area("Uwagi i Obserwacje")
             
-            if st.form_submit_button("WYŚLIJ PROTOKÓŁ"):
-                errs = [pt for pt, v in check_results.items() if v == "BRAK"]
-                status = "System Status: NOMINAL" if not errs else f"ALERT: {', '.join(errs)}"
-                if save_to_google_sheets([datetime.now().strftime("%Y-%m-%d %H:%M"), st.session_state.user, r, k, status, u]):
-                    st.toast("Wysłano!")
-                    st.success("Protokół zapisany.")
+            if st.form_submit_button("WYŚLIJ DO DYSPOZYTORA"):
+                if not r: st.error("Podaj numer rejestracyjny!")
+                else:
+                    ts = datetime.now().strftime("%Y-%m-%d %H:%M")
+                    errs = [pt for pt, v in check_results.items() if v == "BRAK"]
+                    status = "System Status: NOMINAL" if not errs else f"ALERT: {', '.join(errs)}"
+                    if save_to_google_sheets([ts, st.session_state.user, r, k, status, u]):
+                        st.success("Protokół wysłany pomyślnie.")
