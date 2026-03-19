@@ -49,7 +49,7 @@ def save_to_google_sheets(row_data):
         return False
 
 # =========================================================
-# 2. DESIGN VORTEZA 8.0
+# 2. DESIGN VORTEZA 8.5 - LOGOUT & STYLE
 # =========================================================
 def apply_vorteza_design():
     try:
@@ -74,10 +74,12 @@ def apply_vorteza_design():
             margin-bottom: 25px;
         }}
 
-        .login-logo-container {{
-            display: flex;
-            justify-content: center;
-            margin-bottom: 30px;
+        /* Stylizacja dla przycisku Logout */
+        .logout-container {{
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 999;
         }}
 
         div[data-testid="stExpander"] svg {{ display: none !important; }}
@@ -102,10 +104,23 @@ def apply_vorteza_design():
             border-radius: 4px; padding: 20px; margin-bottom: 15px;
         }}
 
+        /* Styl przycisków */
         .stButton > button {{
             background: #B58863 !important;
             color: white !important; font-family: 'Michroma', sans-serif !important;
             width: 100%; border-radius: 2px !important; padding: 18px !important;
+            transition: 0.3s;
+        }}
+        
+        .stButton > button:hover {{
+            background: #966b4a !important;
+            border-color: #B58863 !important;
+        }}
+
+        /* Przycisk wyloguj - mniejszy i w rogu */
+        div[data-testid="column"] .stButton > button {{
+            padding: 5px 10px !important;
+            font-size: 0.7rem !important;
         }}
 
         label, p, span {{ font-family: 'Montserrat', sans-serif !important; color: #FFFFFF !important; }}
@@ -124,8 +139,8 @@ data, current_sha = get_remote_data()
 
 if "auth" not in st.session_state: st.session_state.auth = False
 
+# --- LOGOWANIE ---
 if not st.session_state.auth:
-    # Strona logowania z dużym logo
     st.markdown('<br><br>', unsafe_allow_html=True)
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
@@ -139,17 +154,26 @@ if not st.session_state.auth:
         p = st.text_input("SECURITY KEY", type="password")
         
         if st.button("AUTHORIZE"):
-            # Pobieranie użytkowników bezpośrednio z secrets
             users_db = st.secrets.get("USERS", {})
             if u in users_db and str(users_db[u]) == p:
                 st.session_state.auth, st.session_state.user = True, u
                 st.rerun()
             else:
                 st.error("Invalid Credentials")
+
+# --- PANEL GŁÓWNY ---
 else:
-    # Formularz główny
-    try: st.image('logo_vorteza.png', width=150)
-    except: pass
+    # Header z przyciskiem wyloguj
+    head_col, logout_col = st.columns([4, 1])
+    with logout_col:
+        if st.button("LOGOUT"):
+            st.session_state.auth = False
+            st.rerun()
+            
+    with head_col:
+        try: st.image('logo_vorteza.png', width=120)
+        except: pass
+    
     st.markdown('<p class="logo-font">VORTEZA - BASE</p>', unsafe_allow_html=True)
     
     with st.form("main_form"):
@@ -176,10 +200,11 @@ else:
             else:
                 timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 usterki = [k for k, v in wyniki_kontroli.items() if v == "BRAK/NIE"]
-                wynik_tekst = "Wszystko sprawne" if not usterki else f"USTERKI: {', '.join(usterki)}"
+                wynik_tekst = "System Status: NOMINAL" if not usterki else f"ALERT: {', '.join(usterki)}"
                 
                 row = [timestamp, st.session_state.user, rej, km, wynik_tekst, obs]
                 
                 if save_to_google_sheets(row):
-                    st.success("PROTOCOL TRANSMITTED")
-                    st.balloons()
+                    # Zamiast balonów - profesjonalny komunikat systemowy
+                    st.toast('PROTOCOL SECURED AND TRANSMITTED', icon='✅')
+                    st.success("DATA ENCRYPTED AND SAVED TO CLOUD.")
