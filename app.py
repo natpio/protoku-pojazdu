@@ -7,12 +7,12 @@ import pandas as pd
 from datetime import datetime
 
 # =========================================================
-# 1. KONFIGURACJA STRONY - MUSI BYĆ NA SAMEJ GÓRZE
+# 1. KONFIGURACJA STRONY (NATYCHMIASTOWY START)
 # =========================================================
 st.set_page_config(page_title="VORTEZA-BASE", layout="centered")
 
 # =========================================================
-# 2. DESIGN VORTEZA 8.0 - TWOJA STYLIZACJA (NAPRAWA EXPANDERÓW)
+# 2. DESIGN VORTEZA 8.0 - TWOJA STYLIZACJA
 # =========================================================
 def apply_vorteza_design():
     try:
@@ -39,7 +39,7 @@ def apply_vorteza_design():
             margin-bottom: 25px;
         }}
 
-        /* --- FIX DLA _arrow_right --- */
+        /* --- FIX DLA EXPANDERÓW (strzałki _arrow_right) --- */
         div[data-testid="stExpander"] svg {{
             display: none !important;
         }}
@@ -89,23 +89,24 @@ def apply_vorteza_design():
     """, unsafe_allow_html=True)
 
 # =========================================================
-# 3. POŁĄCZENIE Z BAZĄ (NAPRAWA BŁĘDU TENANT)
+# 3. POŁĄCZENIE Z BAZĄ (FIX DLA PORTU 6543)
 # =========================================================
 def get_connection():
     try:
-        # Wyciągamy project_id: 'twjjscfizxnvbxwxqcbw'
-        user_val = st.secrets["postgres"]["user"]
-        project_id = user_val.split('.')[1] if '.' in user_val else "twjjscfizxnvbxwxqcbw"
+        # Dane z Twoich secrets
+        p_secrets = st.secrets["postgres"]
+        # Wyciągamy ID projektu z nazwy użytkownika (część po kropce)
+        project_id = p_secrets["user"].split('.')[1]
         
         return psycopg2.connect(
-            host=st.secrets["postgres"]["host"],
-            port=st.secrets["postgres"]["port"],
-            database=st.secrets["postgres"]["database"],
-            user=user_val,
-            password=st.secrets["postgres"]["password"],
+            host=p_secrets["host"],
+            port=p_secrets["port"],
+            database=p_secrets["database"],
+            user=p_secrets["user"],
+            password=p_secrets["password"],
             sslmode="require",
-            # TA LINIA JEST KLUCZOWA DLA PORTU 6543
-            options=f"-c endpoint={project_id}",
+            # TA LINIA JEST NIEZBĘDNA DLA PORTU 6543 (Pooler)
+            options=f"-c project={project_id}",
             connect_timeout=10
         )
     except Exception as e:
@@ -113,28 +114,29 @@ def get_connection():
         return None
 
 # =========================================================
-# 4. POBIERANIE KONFIGURACJI (GITHUB) - Z CACHEM
+# 4. GITHUB CONFIG (ZABEZPIECZONY TIMEOUTEM)
 # =========================================================
 @st.cache_data(ttl=600)
-def load_vorteza_config():
+def get_config_from_github():
     try:
         token = st.secrets["G_TOKEN"]["G_TOKEN"]
         url = "https://api.github.com/repos/natpio/protoku-pojazdu/contents/lista_kontrolna.json"
         headers = {"Authorization": f"token {token}"}
+        # Timeout 5 sekund, żeby apka nie wisiała 4 minuty
         res = requests.get(url, headers=headers, timeout=5)
         if res.status_code == 200:
             content = res.json()
             return json.loads(base64.b64decode(content['content']).decode('utf-8'))
     except:
         pass
-    # Backup, jeśli GitHub nie odpowie
-    return {"uzytkownicy": {"admin": "vorteza"}, "lista_kontrolna": {}}
+    # Zapasowe dane, gdyby GitHub padł
+    return {"uzytkownicy": {"admin": "vorteza"}, "lista_kontrolna": {"Ogólne": ["Brak punktów w pliku JSON"]}}
 
 # =========================================================
-# 5. LOGIKA GŁÓWNA APLIKACJI
+# 5. LOGIKA APLIKACJI
 # =========================================================
 apply_vorteza_design()
-data_config = load_vorteza_config()
+data_config = get_config_from_github()
 
 if "auth" not in st.session_state:
     st.session_state.auth = False
@@ -144,16 +146,17 @@ if not st.session_state.auth:
     st.markdown("<br><br><div class='vorteza-card' style='text-align:center;'><p class='logo-font'>SYSTEM ACCESS</p></div>", unsafe_allow_html=True)
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        u = st.text_input("OPERATOR ID")
-        p = st.text_input("SECURITY KEY", type="password")
+        u_input = st.text_input("OPERATOR ID")
+        p_input = st.text_input("SECURITY KEY", type="password")
         if st.button("AUTHORIZE"):
-            if u in data_config.get("uzytkownicy", {}) and data_config["uzytkownicy"][u] == p:
-                st.session_state.auth, st.session_state.user = True, u
+            if u_input in data_config.get("uzytkownicy", {}) and data_config["uzytkownicy"][u_input] == p_input:
+                st.session_state.auth = True
+                st.session_state.user = u_input
                 st.rerun()
             else:
                 st.error("ACCESS DENIED")
 
-# --- EKRAN GŁÓWNY PO ZALOGOWANIU ---
+# --- PANEL GŁÓWNY ---
 else:
     tab1, tab2 = st.tabs(["📝 NOWY PROTOKÓŁ", "📊 HISTORIA"])
 
@@ -166,14 +169,13 @@ else:
             km = st.number_input("MILEAGE (KM)", step=1, value=0)
             st.markdown('</div>', unsafe_allow_html=True)
 
-            # Sekcje dynamiczne z Twoją strzałką ►
-            pomiary = {}
+            wyniki_kontroli = {}
             if "lista_kontrolna" in data_config:
                 for kat, punkty in data_config["lista_kontrolna"].items():
                     with st.expander(f"► {kat.upper()}"):
-                        pomiary[kat] = {}
+                        wyniki_kontroli[kat] = {}
                         for pt in punkty:
-                            pomiary[kat][pt] = st.checkbox(pt, key=f"c_{kat}_{pt}", value=False)
+                            wyniki_kontroli[kat][pt] = st.checkbox(pt, key=f"chk_{kat}_{pt}")
 
             st.markdown('<br>', unsafe_allow_html=True)
             with st.expander("► OBSERVATIONS & NOTES"):
@@ -184,42 +186,40 @@ else:
                 if not rej:
                     st.error("Plate required!")
                 else:
-                    # Łączymy się z bazą dopiero po kliknięciu guzika
-                    conn = get_connection()
-                    if conn:
+                    # Łączymy się z bazą dopiero teraz (nie blokuje startu apki)
+                    db_conn = get_connection()
+                    if db_conn:
                         try:
-                            cur = conn.cursor()
+                            cur = db_conn.cursor()
                             query = """
                                 INSERT INTO protokoly_vorteza 
                                 (rejestracja, przebieg, uwagi, lista_kontrolna, operator_id) 
                                 VALUES (%s, %s, %s, %s, %s)
                             """
-                            cur.execute(query, (rej, km, obs, json.dumps(pomiary), st.session_state.user))
-                            conn.commit()
+                            cur.execute(query, (rej, km, obs, json.dumps(wyniki_kontroli), st.session_state.user))
+                            db_conn.commit()
                             st.success("PROTOCOL TRANSMITTED"); st.balloons()
                             cur.close()
-                            conn.close()
+                            db_conn.close()
                         except Exception as e:
-                            st.error(f"DATABASE ERROR: {e}")
+                            st.error(f"ZAPIS DO BAZY NIEUDANY: {e}")
 
     with tab2:
         st.markdown('<p class="logo-font">LOGISTICS FEED</p>', unsafe_allow_html=True)
-        if st.button("REFRESH DATA"):
+        if st.button("REFRESH"):
             st.rerun()
             
-        conn = get_connection()
-        if conn:
+        db_conn = get_connection()
+        if db_conn:
             try:
-                # Używamy Twojej kolumny data_wpisu
-                query = "SELECT data_wpisu, rejestracja, operator_id FROM protokoly_vorteza ORDER BY data_wpisu DESC LIMIT 15"
-                df = pd.read_sql(query, conn)
+                query = "SELECT data_wpisu, rejestracja, operator_id FROM protokoly_vorteza ORDER BY data_wpisu DESC LIMIT 10"
+                df = pd.read_sql(query, db_conn)
                 for _, row in df.iterrows():
-                    with st.container():
-                        st.markdown(f"""
-                            <div class='vorteza-card'>
-                                <b>{row['rejestracja']}</b> | {row['operator_id']} | {row['data_wpisu']}
-                            </div>
-                        """, unsafe_allow_html=True)
-                conn.close()
-            except Exception as e:
-                st.info("No records found or table error.")
+                    st.markdown(f"""
+                        <div class='vorteza-card'>
+                            <b>{row['rejestracja']}</b> | {row['operator_id']} | {row['data_wpisu']}
+                        </div>
+                    """, unsafe_allow_html=True)
+                db_conn.close()
+            except:
+                st.info("Brak wpisów w historii.")
