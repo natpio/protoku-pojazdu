@@ -56,7 +56,7 @@ def load_from_google_sheets():
     except: return pd.DataFrame()
 
 # =========================================================
-# 2. DESIGN VORTEZA 9.5 - COMMAND CENTER
+# 2. DESIGN VORTEZA 10.0 - COMMAND CENTER
 # =========================================================
 def apply_vorteza_design():
     try:
@@ -93,11 +93,7 @@ def apply_vorteza_design():
         .stButton > button:hover {{ background: #966b4a !important; box-shadow: 0px 0px 15px rgba(181, 136, 99, 0.4); }}
 
         label, p, span, div {{ font-family: 'Montserrat', sans-serif !important; color: #FFFFFF !important; }}
-        
-        /* Stylistyka Sidebar */
         section[data-testid="stSidebar"] {{ background-color: rgba(10, 10, 10, 0.9) !important; border-right: 1px solid #B58863; }}
-        
-        /* Ukrycie elementów Streamlit */
         #MainMenu, footer, header {{visibility: hidden;}}
         .stDeployButton {{display:none;}}
         </style>
@@ -128,23 +124,24 @@ if not st.session_state.auth:
                 st.rerun()
             else: st.error("Access Denied")
 
-# --- PANEL GŁÓWNY ---
+# --- PANEL PO ZALOGOWANIU ---
 else:
-    # Sidebar - Nawigacja i Filtry
     with st.sidebar:
         try: st.image('logo_vorteza.png', width=100)
         except: pass
         st.markdown(f"<p style='color:#B58863; font-size: 0.8rem;'>ACTIVE: {st.session_state.user.upper()}</p>", unsafe_allow_html=True)
         st.markdown("---")
         
-        # Jeśli dyspozytor/admin - pokaż filtry
         is_dispatcher = "dyspozytor" in st.session_state.user.lower() or st.session_state.user == "admin"
         
         if is_dispatcher:
             st.markdown('<p style="font-family: Michroma; color: #B58863; font-size: 0.7rem;">FILTERS</p>', unsafe_allow_html=True)
             df_full = load_from_google_sheets()
             if not df_full.empty:
-                f_plate = st.selectbox("PLATE", ["ALL"] + list(df_full['Numer Rejestracyjny'].unique()))
+                # Pobieranie kolumny z uwzględnieniem Twoich nagłówków
+                col_rej_name = 'Numer Rejestracyjny'
+                plates = ["ALL"] + list(df_full[col_rej_name].unique()) if col_rej_name in df_full.columns else ["ALL"]
+                f_plate = st.selectbox("PLATE", plates)
                 f_alerts = st.checkbox("ONLY ALERTS")
             if st.button("REFRESH DATA"): st.rerun()
         
@@ -152,22 +149,30 @@ else:
             st.session_state.auth = False
             st.rerun()
 
-    # --- WIDOK DYSPOZYTORA (KARTY) ---
+    # --- WIDOK DYSPOZYTORA ---
     if is_dispatcher:
         st.markdown('<p class="logo-font">DISPATCHER COMMAND CENTER</p>', unsafe_allow_html=True)
         
         if not df_full.empty:
-            # Filtrowanie
             df = df_full.copy()
             if f_plate != "ALL": df = df[df['Numer Rejestracyjny'] == f_plate]
             if f_alerts: df = df[df['Wynik Kontroli'].str.contains("ALERT", na=False)]
             
-            # Sortowanie po dacie (najnowsze u góry)
-            df['Data i Godzina'] = pd.to_datetime(df['Data i Godzina'])
-            df = df.sort_values(by='Data i Godzina', ascending=False)
+            # Konwersja daty do sortowania
+            if 'Data i Godzina' in df.columns:
+                df['Data i Godzina'] = pd.to_datetime(df['Data i Godzina'])
+                df = df.sort_values(by='Data i Godzina', ascending=False)
 
             for _, row in df.iterrows():
-                is_alert = "ALERT" in str(row['Wynik Kontroli']).upper()
+                # MAPOWANIE TWOICH NAGŁÓWKÓW (Zabezpieczenie przed KeyError)
+                val_data = row.get('Data i Godzina', 'N/A')
+                val_op = row.get('Operator ID', 'N/A')
+                val_rej = row.get('Numer Rejestracyjny', 'N/A')
+                val_km = row.get('Przebieg (km)', 0)
+                val_wynik = row.get('Wynik Kontroli', 'Brak danych')
+                val_uwagi = row.get('Uwagi i Obserwacje', '') # Poprawiona nazwa kolumny
+
+                is_alert = "ALERT" in str(val_wynik).upper()
                 accent = "#FF4B4B" if is_alert else "#B58863"
                 bg = "rgba(255, 75, 75, 0.15)" if is_alert else "rgba(181, 136, 99, 0.05)"
                 glow = "0px 0px 15px rgba(255, 75, 75, 0.3)" if is_alert else "none"
@@ -175,23 +180,23 @@ else:
                 st.markdown(f"""
                     <div style="background: {bg}; border: 1px solid {accent}; box-shadow: {glow}; border-radius: 4px; padding: 15px; margin-bottom: 15px;">
                         <div style="display: flex; justify-content: space-between; margin-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 5px;">
-                            <span style="font-family: 'Michroma'; color: {accent};">{row['Numer Rejestracyjny']}</span>
-                            <span style="font-size: 0.8rem; opacity: 0.6;">{row['Data i Godzina'].strftime('%Y-%m-%d %H:%M')}</span>
+                            <span style="font-family: 'Michroma'; color: {accent};">{val_rej}</span>
+                            <span style="font-size: 0.8rem; opacity: 0.6;">{val_data}</span>
                         </div>
                         <div style="display: flex; gap: 20px; font-size: 0.8rem; margin-bottom: 10px;">
-                            <div><span style="color:{accent};">OP:</span> {row['Operator ID']}</div>
-                            <div><span style="color:{accent};">KM:</span> {row['Przebieg (km)']}</div>
+                            <div><span style="color:{accent};">OP:</span> {val_op}</div>
+                            <div><span style="color:{accent};">KM:</span> {val_km}</div>
                         </div>
                         <div style="background: rgba(0,0,0,0.4); padding: 8px; border-radius: 2px; border-left: 3px solid {accent}; font-size: 0.9rem;">
-                            {row['Wynik Kontroli']}
+                            {val_wynik}
                         </div>
-                        {f'<div style="margin-top:8px; font-size:0.8rem; opacity:0.7;">Note: {row["Uwagi"]}</div>' if row["Uwagi"] else ""}
+                        {f'<div style="margin-top:8px; font-size:0.8rem; opacity:0.7;">Uwagi: {val_uwagi}</div>' if val_uwagi else ""}
                     </div>
                 """, unsafe_allow_html=True)
         else:
             st.info("No data available.")
 
-    # --- WIDOK KIEROWCY (FORMULARZ) ---
+    # --- WIDOK KIEROWCY ---
     else:
         st.markdown('<p class="logo-font">VEHICLE CHECKLIST</p>', unsafe_allow_html=True)
         data_gh, _ = get_remote_data()
@@ -210,7 +215,8 @@ else:
                             res = st.checkbox(pt, key=f"chk_{kat}_{pt}")
                             wyniki[pt] = "OK" if res else "BRAK/NIE"
 
-            obs = st.text_area("Observations...")
+            # Formularz wysyła dane zgodnie z Twoim nagłówkiem
+            obs = st.text_area("Uwagi i Obserwacje")
 
             if st.form_submit_button("TRANSMIT PROTOCOL"):
                 if not rej: st.error("Plate required!")
@@ -219,6 +225,9 @@ else:
                     errs = [k for k, v in wyniki.items() if v == "BRAK/NIE"]
                     status = "System Status: NOMINAL" if not errs else f"ALERT: {', '.join(errs)}"
                     
-                    if save_to_google_sheets([ts, st.session_state.user, rej, km, status, obs]):
+                    # KOLEJNOŚĆ DANYCH ZGODNA Z TWOIM ARKUSZEM
+                    row_data = [ts, st.session_state.user, rej, km, status, obs]
+                    
+                    if save_to_google_sheets(row_data):
                         st.toast('DATA SECURED', icon='✅')
                         st.success("PROTOCOL SAVED TO CLOUD.")
