@@ -8,7 +8,7 @@ from datetime import datetime
 from google.oauth2.service_account import Credentials
 
 # =========================================================
-# 1. KONFIGURACJA I ZASOBY
+# 1. KONFIGURACJA I ZASOBY (GITHUB & GOOGLE)
 # =========================================================
 try:
     GITHUB_TOKEN = st.secrets["G_TOKEN"]["G_TOKEN"]
@@ -17,21 +17,34 @@ except:
 
 REPO_OWNER = "natpio"
 REPO_NAME = "protoku-pojazdu"
-FILE_PATH = "lista_kontrolna.json"
 SHEET_ID = "1UDehrxN8_j1CCrpq9FcXSory7FMA0LSdSk8PCIxIvPQ"
 
-def get_remote_data():
-    if not GITHUB_TOKEN: return None, None
-    url = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/contents/{FILE_PATH}"
+def get_github_file(file_path):
+    """Pobiera dowolny plik z repozytorium GitHub."""
+    if not GITHUB_TOKEN: return None
+    url = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/contents/{file_path}"
     headers = {"Authorization": f"token {GITHUB_TOKEN}"}
     try:
         res = requests.get(url, headers=headers)
         if res.status_code == 200:
-            content = res.json()
-            data = json.loads(base64.b64decode(content['content']).decode('utf-8'))
-            return data, content['sha']
+            return res.json()
     except: pass
+    return None
+
+def get_remote_data():
+    """Pobiera dane JSON listy kontrolnej."""
+    content = get_github_file("lista_kontrolna.json")
+    if content:
+        data = json.loads(base64.b64decode(content['content']).decode('utf-8'))
+        return data, content['sha']
     return None, None
+
+def get_bg_base64():
+    """Pobiera tło z GitHub i konwertuje na Base64."""
+    content = get_github_file("bg_vorteza.png")
+    if content:
+        return content['content'].replace("\n", "") # GitHub zwraca już base64
+    return ""
 
 def get_gspread_client():
     scope = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
@@ -56,70 +69,78 @@ def save_to_google_sheets(row_data):
     except: return False
 
 # =========================================================
-# 2. DESIGN VORTEZA 14.1 - STABILNY INTERFEJS + LOGO
+# 2. DESIGN VORTEZA 15.0 - PEŁNA OPRAWA WIZUALNA
 # =========================================================
 def apply_vorteza_design():
-    st.markdown("""
+    bg_data = get_bg_base64()
+    bg_style = f"""
+        background: linear-gradient(rgba(0,0,0,0.85), rgba(0,0,0,0.85)), 
+                    url("data:image/png;base64,{bg_data}");
+        background-size: cover;
+        background-attachment: fixed;
+    """ if bg_data else "background-color: #050505;"
+
+    st.markdown(f"""
         <style>
         @import url('https://fonts.googleapis.com/css2?family=Michroma&family=Montserrat:wght@400;700&display=swap');
         
-        .stApp { background-color: #050505; }
+        .stApp {{
+            {bg_style}
+        }}
         
-        .vorteza-header {
+        .vorteza-header {{
             font-family: 'Michroma', sans-serif;
             color: #B58863;
             text-align: center;
             letter-spacing: 4px;
             padding: 20px;
             text-transform: uppercase;
-        }
+        }}
 
-        section[data-testid="stSidebar"] {
-            background-color: rgba(10, 10, 10, 0.98) !important;
+        section[data-testid="stSidebar"] {{
+            background-color: rgba(5, 5, 5, 0.95) !important;
             border-right: 1px solid #B58863;
-        }
+        }}
 
-        /* Kontener wpisu logistycznego */
-        .log-entry {
-            background-color: #111111;
+        .log-entry {{
+            background-color: rgba(17, 17, 17, 0.9);
             border-left: 5px solid #B58863;
             border-radius: 4px;
             padding: 20px;
             margin-bottom: 25px;
             color: white;
             font-family: 'Montserrat', sans-serif;
-        }
+            backdrop-filter: blur(5px);
+        }}
 
-        .log-entry-alert { border-left: 5px solid #FF4B4B !important; }
+        .log-entry-alert {{ border-left: 5px solid #FF4B4B !important; }}
 
-        .fault-list {
-            background: rgba(255, 75, 75, 0.1);
-            border: 1px solid rgba(255, 75, 75, 0.3);
+        .fault-list {{
+            background: rgba(255, 75, 75, 0.15);
+            border: 1px solid rgba(255, 75, 75, 0.4);
             border-radius: 4px;
-            padding: 10px;
+            padding: 12px;
             margin-top: 10px;
-        }
+        }}
 
-        .fault-item {
+        .fault-item {{
             color: #FF4B4B;
             font-size: 0.85rem;
             display: block;
-            margin-bottom: 2px;
-        }
+            margin-bottom: 3px;
+            font-weight: 600;
+        }}
 
-        .status-ok {
+        .status-ok {{
             color: #B58863;
             font-weight: bold;
             font-size: 0.9rem;
             margin-top: 10px;
             display: block;
-        }
+        }}
 
-        #MainMenu, footer, header {visibility: hidden;}
-        .stDeployButton {display:none;}
-        
-        /* Poprawka dla obrazka w sidebarze */
-        [data-testid="stSidebarNav"] {padding-top: 20px;}
+        #MainMenu, footer, header {{visibility: hidden;}}
+        .stDeployButton {{display:none;}}
         </style>
     """, unsafe_allow_html=True)
 
@@ -150,10 +171,8 @@ else:
     is_dispatcher = "dyspozytor" in st.session_state.user.lower() or st.session_state.user == "admin"
     
     with st.sidebar:
-        # PRZYWRÓCONE LOGO
         try: st.image('logo_vorteza.png', width=150)
         except: pass
-        
         st.markdown(f"<p style='color:#B58863; font-family:Michroma; font-size:0.9rem; margin-top:10px;'>{st.session_state.user.upper()}</p>", unsafe_allow_html=True)
         st.markdown("---")
         
@@ -161,7 +180,7 @@ else:
             st.markdown("<p style='color:#B58863; font-size:0.7rem; font-weight:bold;'>FILTRY</p>", unsafe_allow_html=True)
             df_full = load_from_google_sheets()
             if not df_full.empty:
-                plates = ["WSZYSTKIE"] + list(df_full['Numer Rejestracyjny'].unique())
+                plates = ["WSZYSTKIE"] + sorted(list(df_full['Numer Rejestracyjny'].unique()))
                 f_plate = st.selectbox("POJAZD", plates)
                 f_alerts = st.checkbox("TYLKO ALERTY")
             if st.button("ODŚWIEŻ DANE"): st.rerun()
@@ -177,7 +196,7 @@ else:
         if not df_full.empty:
             df = df_full.copy()
             if f_plate != "WSZYSTKIE": df = df[df['Numer Rejestracyjny'] == f_plate]
-            if f_alerts: df = df[df['Wynik Kontroli'].str.contains("ALERT|USTERK", na=False, case=False)]
+            if f_alerts: df = df[df['Wynik Kontroli'].str.contains("ALERT|USTERK|BRAK", na=False, case=False)]
             
             df['Data i Godzina'] = pd.to_datetime(df['Data i Godzina'])
             df = df.sort_values(by='Data i Godzina', ascending=False)
@@ -196,24 +215,24 @@ else:
                         fault_html += f'<span class="fault-item">⚠️ {item.strip()}</span>'
                     fault_html += '</div>'
                 else:
-                    fault_html = '<span class="status-ok">✅ POJAZD SPRAWNY (NOMINAL)</span>'
+                    fault_html = '<span class="status-ok">✅ SYSTEMY NOMINALNE</span>'
 
                 st.markdown(f"""
                 <div class="{entry_class}">
-                    <div style="display:flex; justify-content:space-between; font-family:'Michroma'; border-bottom: 1px solid rgba(181,136,99,0.1); padding-bottom: 8px; margin-bottom: 10px;">
+                    <div style="display:flex; justify-content:space-between; font-family:'Michroma'; border-bottom: 1px solid rgba(181,136,99,0.2); padding-bottom: 8px; margin-bottom: 10px;">
                         <span style="font-size:1.2rem; color:#B58863;">{row.get('Numer Rejestracyjny', 'N/A')}</span>
-                        <span style="opacity:0.5; font-size:0.8rem;">{row.get('Data i Godzina').strftime('%Y-%m-%d | %H:%M')}</span>
+                        <span style="opacity:0.6; font-size:0.8rem;">{row.get('Data i Godzina').strftime('%Y-%m-%d | %H:%M')}</span>
                     </div>
                     <div style="font-size: 0.85rem; margin-bottom: 15px;">
-                        OPERATOR: <b style="color:#B58863;">{row.get('Operator ID', 'N/A')}</b> | 
-                        PRZEBIEG: <b style="color:#B58863;">{row.get('Przebieg (km)', 0)} KM</b>
+                        OP: <b style="color:#B58863;">{row.get('Operator ID', 'N/A')}</b> | 
+                        KM: <b style="color:#B58863;">{row.get('Przebieg (km)', 0)}</b>
                     </div>
                     {fault_html}
                     {f'<div style="margin-top:15px; font-size:0.8rem; border-top: 1px dotted rgba(255,255,255,0.1); padding-top:10px; opacity:0.8;"><i>Notatka: {row.get("Uwagi i Obserwacje", "")}</i></div>' if row.get("Uwagi i Obserwacje") else ""}
                 </div>
                 """, unsafe_allow_html=True)
         else:
-            st.info("Brak wpisów w bazie danych.")
+            st.info("Brak danych w systemie.")
 
     else:
         # WIDOK KIEROWCY
@@ -234,11 +253,11 @@ else:
             
             u = st.text_area("Uwagi i Obserwacje")
             
-            if st.form_submit_button("WYŚLIJ DO DYSPOZYTORA"):
+            if st.form_submit_button("WYŚLIJ PROTOKÓŁ"):
                 if not r: st.error("Podaj numer rejestracyjny!")
                 else:
                     ts = datetime.now().strftime("%Y-%m-%d %H:%M")
                     errs = [pt for pt, v in check_results.items() if v == "BRAK"]
                     status = "System Status: NOMINAL" if not errs else f"ALERT: {', '.join(errs)}"
                     if save_to_google_sheets([ts, st.session_state.user, r, k, status, u]):
-                        st.success("Protokół wysłany pomyślnie.")
+                        st.success("Dane przesłane do bazy.")
