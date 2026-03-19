@@ -56,7 +56,7 @@ def load_from_google_sheets():
     except: return pd.DataFrame()
 
 # =========================================================
-# 2. DESIGN VORTEZA 9.0
+# 2. DESIGN VORTEZA 9.5 - COMMAND CENTER
 # =========================================================
 def apply_vorteza_design():
     try:
@@ -67,43 +67,51 @@ def apply_vorteza_design():
     st.markdown(f"""
         <style>
         @import url('https://fonts.googleapis.com/css2?family=Michroma&family=Montserrat:wght@400;600&display=swap');
+        
         .stApp {{
-            background: linear-gradient(rgba(0,0,0,0.85), rgba(0,0,0,0.85)), url("data:image/png;base64,{bg_base64}");
+            background: linear-gradient(rgba(0,0,0,0.9), rgba(0,0,0,0.9)), url("data:image/png;base64,{bg_base64}");
             background-size: cover; background-attachment: fixed;
         }}
+
         .logo-font {{
             font-family: 'Michroma', sans-serif !important;
             color: #B58863 !important; text-align: center; font-size: 1.5rem !important;
             letter-spacing: 5px !important; text-transform: uppercase; margin-bottom: 25px;
         }}
+
         .vorteza-card {{
             background: rgba(20, 20, 20, 0.7);
             border: 1px solid rgba(181, 136, 99, 0.3);
             border-radius: 4px; padding: 20px; margin-bottom: 15px;
         }}
+
         .stButton > button {{
             background: #B58863 !important; color: white !important; font-family: 'Michroma', sans-serif !important;
-            width: 100%; border-radius: 2px !important; padding: 15px !important;
+            width: 100%; border-radius: 2px !important; padding: 15px !important; transition: 0.3s;
         }}
+        
+        .stButton > button:hover {{ background: #966b4a !important; box-shadow: 0px 0px 15px rgba(181, 136, 99, 0.4); }}
+
         label, p, span, div {{ font-family: 'Montserrat', sans-serif !important; color: #FFFFFF !important; }}
-        /* Styl tabeli dla dyspozytora */
-        [data-testid="stDataFrame"] {{
-            background: rgba(0,0,0,0.5);
-            border: 1px solid #B58863;
-        }}
+        
+        /* Stylistyka Sidebar */
+        section[data-testid="stSidebar"] {{ background-color: rgba(10, 10, 10, 0.9) !important; border-right: 1px solid #B58863; }}
+        
+        /* Ukrycie elementów Streamlit */
         #MainMenu, footer, header {{visibility: hidden;}}
+        .stDeployButton {{display:none;}}
         </style>
     """, unsafe_allow_html=True)
 
 # =========================================================
 # 3. LOGIKA SYSTEMU
 # =========================================================
-st.set_page_config(page_title="VORTEZA-LOGISTICS", layout="wide")
+st.set_page_config(page_title="VORTEZA LOGISTICS", layout="wide")
 apply_vorteza_design()
 
 if "auth" not in st.session_state: st.session_state.auth = False
 
-# --- LOGOWANIE ---
+# --- EKRAN LOGOWANIA ---
 if not st.session_state.auth:
     col1, col2, col3 = st.columns([1, 1.5, 1])
     with col2:
@@ -120,54 +128,75 @@ if not st.session_state.auth:
                 st.rerun()
             else: st.error("Access Denied")
 
-# --- PANEL PO ZALOGOWANIU ---
+# --- PANEL GŁÓWNY ---
 else:
-    # Górna belka
-    c1, c2 = st.columns([5, 1])
-    with c2:
+    # Sidebar - Nawigacja i Filtry
+    with st.sidebar:
+        try: st.image('logo_vorteza.png', width=100)
+        except: pass
+        st.markdown(f"<p style='color:#B58863; font-size: 0.8rem;'>ACTIVE: {st.session_state.user.upper()}</p>", unsafe_allow_html=True)
+        st.markdown("---")
+        
+        # Jeśli dyspozytor/admin - pokaż filtry
+        is_dispatcher = "dyspozytor" in st.session_state.user.lower() or st.session_state.user == "admin"
+        
+        if is_dispatcher:
+            st.markdown('<p style="font-family: Michroma; color: #B58863; font-size: 0.7rem;">FILTERS</p>', unsafe_allow_html=True)
+            df_full = load_from_google_sheets()
+            if not df_full.empty:
+                f_plate = st.selectbox("PLATE", ["ALL"] + list(df_full['Numer Rejestracyjny'].unique()))
+                f_alerts = st.checkbox("ONLY ALERTS")
+            if st.button("REFRESH DATA"): st.rerun()
+        
         if st.button("LOGOUT"):
             st.session_state.auth = False
             st.rerun()
-    with c1:
-        st.markdown(f"<p style='color:#B58863'>ACTIVE OPERATOR: {st.session_state.user.upper()}</p>", unsafe_allow_html=True)
 
-    # ROZDZIAŁ RÓL: Dyspozytor vs Kierowca
-    if "dyspozytor" in st.session_state.user.lower() or st.session_state.user == "admin":
-        st.markdown('<p class="logo-font">DISPATCHER CONTROL PANEL</p>', unsafe_allow_html=True)
+    # --- WIDOK DYSPOZYTORA (KARTY) ---
+    if is_dispatcher:
+        st.markdown('<p class="logo-font">DISPATCHER COMMAND CENTER</p>', unsafe_allow_html=True)
         
-        df = load_from_google_sheets()
-        
-        if not df.empty:
-            # Filtry dla dyspozytora
-            st.markdown('<div class="vorteza-card">', unsafe_allow_html=True)
-            col_f1, col_f2 = st.columns(2)
-            with col_f1:
-                search_plate = st.selectbox("FILTER BY PLATE", ["ALL"] + list(df['Numer Rejestracyjny'].unique()))
-            with col_f2:
-                only_alerts = st.checkbox("SHOW ONLY ALERTS")
+        if not df_full.empty:
+            # Filtrowanie
+            df = df_full.copy()
+            if f_plate != "ALL": df = df[df['Numer Rejestracyjny'] == f_plate]
+            if f_alerts: df = df[df['Wynik Kontroli'].str.contains("ALERT", na=False)]
             
-            # Aplikowanie filtrów
-            if search_plate != "ALL":
-                df = df[df['Numer Rejestracyjny'] == search_plate]
-            if only_alerts:
-                df = df[df['Wynik Kontroli'].str.contains("ALERT", na=False)]
-            
-            st.markdown('</div>', unsafe_allow_html=True)
-            
-            # Wyświetlanie danych
-            st.dataframe(df, use_container_width=True, hide_index=True)
-            
-            if st.button("REFRESH DATA"):
-                st.rerun()
+            # Sortowanie po dacie (najnowsze u góry)
+            df['Data i Godzina'] = pd.to_datetime(df['Data i Godzina'])
+            df = df.sort_values(by='Data i Godzina', ascending=False)
+
+            for _, row in df.iterrows():
+                is_alert = "ALERT" in str(row['Wynik Kontroli']).upper()
+                accent = "#FF4B4B" if is_alert else "#B58863"
+                bg = "rgba(255, 75, 75, 0.15)" if is_alert else "rgba(181, 136, 99, 0.05)"
+                glow = "0px 0px 15px rgba(255, 75, 75, 0.3)" if is_alert else "none"
+
+                st.markdown(f"""
+                    <div style="background: {bg}; border: 1px solid {accent}; box-shadow: {glow}; border-radius: 4px; padding: 15px; margin-bottom: 15px;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 5px;">
+                            <span style="font-family: 'Michroma'; color: {accent};">{row['Numer Rejestracyjny']}</span>
+                            <span style="font-size: 0.8rem; opacity: 0.6;">{row['Data i Godzina'].strftime('%Y-%m-%d %H:%M')}</span>
+                        </div>
+                        <div style="display: flex; gap: 20px; font-size: 0.8rem; margin-bottom: 10px;">
+                            <div><span style="color:{accent};">OP:</span> {row['Operator ID']}</div>
+                            <div><span style="color:{accent};">KM:</span> {row['Przebieg (km)']}</div>
+                        </div>
+                        <div style="background: rgba(0,0,0,0.4); padding: 8px; border-radius: 2px; border-left: 3px solid {accent}; font-size: 0.9rem;">
+                            {row['Wynik Kontroli']}
+                        </div>
+                        {f'<div style="margin-top:8px; font-size:0.8rem; opacity:0.7;">Note: {row["Uwagi"]}</div>' if row["Uwagi"] else ""}
+                    </div>
+                """, unsafe_allow_html=True)
         else:
-            st.warning("No data found in the cloud.")
+            st.info("No data available.")
 
+    # --- WIDOK KIEROWCY (FORMULARZ) ---
     else:
-        # PANEL KIEROWCY (Formularz)
         st.markdown('<p class="logo-font">VEHICLE CHECKLIST</p>', unsafe_allow_html=True)
         data_gh, _ = get_remote_data()
         
-        with st.form("main_form"):
+        with st.form("main_form", clear_on_submit=True):
             st.markdown('<div class="vorteza-card">', unsafe_allow_html=True)
             rej = st.text_input("LICENSE PLATE")
             km = st.number_input("MILEAGE (KM)", step=1, value=0)
@@ -181,15 +210,15 @@ else:
                             res = st.checkbox(pt, key=f"chk_{kat}_{pt}")
                             wyniki[pt] = "OK" if res else "BRAK/NIE"
 
-            obs = st.text_area("Observations...", height=80)
+            obs = st.text_area("Observations...")
 
             if st.form_submit_button("TRANSMIT PROTOCOL"):
                 if not rej: st.error("Plate required!")
                 else:
-                    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M")
-                    usterki = [k for k, v in wyniki.items() if v == "BRAK/NIE"]
-                    wynik_tekst = "System Status: NOMINAL" if not usterki else f"ALERT: {', '.join(usterki)}"
+                    ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    errs = [k for k, v in wyniki.items() if v == "BRAK/NIE"]
+                    status = "System Status: NOMINAL" if not errs else f"ALERT: {', '.join(errs)}"
                     
-                    if save_to_google_sheets([timestamp, st.session_state.user, rej, km, wynik_tekst, obs]):
+                    if save_to_google_sheets([ts, st.session_state.user, rej, km, status, obs]):
                         st.toast('DATA SECURED', icon='✅')
-                        st.success("PROTOCOL SAVED.")
+                        st.success("PROTOCOL SAVED TO CLOUD.")
