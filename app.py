@@ -3,6 +3,7 @@ import json
 import requests
 import base64
 import gspread
+import pandas as pd
 from datetime import datetime
 from google.oauth2.service_account import Credentials
 
@@ -44,12 +45,18 @@ def save_to_google_sheets(row_data):
         sheet = client.open_by_key(SHEET_ID).sheet1
         sheet.append_row(row_data)
         return True
-    except Exception as e:
-        st.error(f"Błąd zapisu: {e}")
-        return False
+    except: return False
+
+def load_from_google_sheets():
+    try:
+        client = get_gspread_client()
+        sheet = client.open_by_key(SHEET_ID).sheet1
+        data = sheet.get_all_records()
+        return pd.DataFrame(data)
+    except: return pd.DataFrame()
 
 # =========================================================
-# 2. DESIGN VORTEZA 8.5 - LOGOUT & STYLE
+# 2. DESIGN VORTEZA 9.0
 # =========================================================
 def apply_vorteza_design():
     try:
@@ -60,151 +67,129 @@ def apply_vorteza_design():
     st.markdown(f"""
         <style>
         @import url('https://fonts.googleapis.com/css2?family=Michroma&family=Montserrat:wght@400;600&display=swap');
-        
         .stApp {{
             background: linear-gradient(rgba(0,0,0,0.85), rgba(0,0,0,0.85)), url("data:image/png;base64,{bg_base64}");
             background-size: cover; background-attachment: fixed;
         }}
-
         .logo-font {{
             font-family: 'Michroma', sans-serif !important;
-            color: #B58863 !important;
-            text-align: center; font-size: 1.5rem !important;
-            letter-spacing: 5px !important; text-transform: uppercase;
-            margin-bottom: 25px;
+            color: #B58863 !important; text-align: center; font-size: 1.5rem !important;
+            letter-spacing: 5px !important; text-transform: uppercase; margin-bottom: 25px;
         }}
-
-        /* Stylizacja dla przycisku Logout */
-        .logout-container {{
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            z-index: 999;
-        }}
-
-        div[data-testid="stExpander"] svg {{ display: none !important; }}
-        div[data-testid="stExpander"] summary span {{ color: transparent !important; font-size: 0px !important; }}
-
-        .streamlit-expanderHeader {{
-            background-color: rgba(181, 136, 99, 0.1) !important;
-            border: 1px solid rgba(181, 136, 99, 0.3) !important;
-            border-left: 5px solid #B58863 !important;
-            border-radius: 4px !important; padding: 12px !important;
-        }}
-
-        div[data-testid="stExpander"] p {{
-            font-family: 'Michroma', sans-serif !important;
-            color: #B58863 !important; font-size: 0.8rem !important;
-            letter-spacing: 2px !important; visibility: visible !important; display: block !important;
-        }}
-
         .vorteza-card {{
             background: rgba(20, 20, 20, 0.7);
-            border: 1px solid rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(181, 136, 99, 0.3);
             border-radius: 4px; padding: 20px; margin-bottom: 15px;
         }}
-
-        /* Styl przycisków */
         .stButton > button {{
-            background: #B58863 !important;
-            color: white !important; font-family: 'Michroma', sans-serif !important;
-            width: 100%; border-radius: 2px !important; padding: 18px !important;
-            transition: 0.3s;
+            background: #B58863 !important; color: white !important; font-family: 'Michroma', sans-serif !important;
+            width: 100%; border-radius: 2px !important; padding: 15px !important;
         }}
-        
-        .stButton > button:hover {{
-            background: #966b4a !important;
-            border-color: #B58863 !important;
+        label, p, span, div {{ font-family: 'Montserrat', sans-serif !important; color: #FFFFFF !important; }}
+        /* Styl tabeli dla dyspozytora */
+        [data-testid="stDataFrame"] {{
+            background: rgba(0,0,0,0.5);
+            border: 1px solid #B58863;
         }}
-
-        /* Przycisk wyloguj - mniejszy i w rogu */
-        div[data-testid="column"] .stButton > button {{
-            padding: 5px 10px !important;
-            font-size: 0.7rem !important;
-        }}
-
-        label, p, span {{ font-family: 'Montserrat', sans-serif !important; color: #FFFFFF !important; }}
         #MainMenu, footer, header {{visibility: hidden;}}
-        .stDeployButton {{display:none;}}
         </style>
     """, unsafe_allow_html=True)
 
 # =========================================================
-# 3. LOGIKA APLIKACJI
+# 3. LOGIKA SYSTEMU
 # =========================================================
-st.set_page_config(page_title="VORTEZA-BASE", layout="centered")
+st.set_page_config(page_title="VORTEZA-LOGISTICS", layout="wide")
 apply_vorteza_design()
-
-data, current_sha = get_remote_data()
 
 if "auth" not in st.session_state: st.session_state.auth = False
 
 # --- LOGOWANIE ---
 if not st.session_state.auth:
-    st.markdown('<br><br>', unsafe_allow_html=True)
-    col1, col2, col3 = st.columns([1, 2, 1])
+    col1, col2, col3 = st.columns([1, 1.5, 1])
     with col2:
-        try:
-            st.image('logo_vorteza.png', use_container_width=True)
-        except:
-            pass
+        st.markdown('<br><br>', unsafe_allow_html=True)
+        try: st.image('logo_vorteza.png', use_container_width=True)
+        except: pass
         st.markdown("<div class='vorteza-card' style='text-align:center;'><p class='logo-font'>SYSTEM ACCESS</p></div>", unsafe_allow_html=True)
-        
         u = st.text_input("OPERATOR ID")
         p = st.text_input("SECURITY KEY", type="password")
-        
         if st.button("AUTHORIZE"):
-            users_db = st.secrets.get("USERS", {})
-            if u in users_db and str(users_db[u]) == p:
+            users = st.secrets.get("USERS", {})
+            if u in users and str(users[u]) == p:
                 st.session_state.auth, st.session_state.user = True, u
                 st.rerun()
-            else:
-                st.error("Invalid Credentials")
+            else: st.error("Access Denied")
 
-# --- PANEL GŁÓWNY ---
+# --- PANEL PO ZALOGOWANIU ---
 else:
-    # Header z przyciskiem wyloguj
-    head_col, logout_col = st.columns([4, 1])
-    with logout_col:
+    # Górna belka
+    c1, c2 = st.columns([5, 1])
+    with c2:
         if st.button("LOGOUT"):
             st.session_state.auth = False
             st.rerun()
+    with c1:
+        st.markdown(f"<p style='color:#B58863'>ACTIVE OPERATOR: {st.session_state.user.upper()}</p>", unsafe_allow_html=True)
+
+    # ROZDZIAŁ RÓL: Dyspozytor vs Kierowca
+    if "dyspozytor" in st.session_state.user.lower() or st.session_state.user == "admin":
+        st.markdown('<p class="logo-font">DISPATCHER CONTROL PANEL</p>', unsafe_allow_html=True)
+        
+        df = load_from_google_sheets()
+        
+        if not df.empty:
+            # Filtry dla dyspozytora
+            st.markdown('<div class="vorteza-card">', unsafe_allow_html=True)
+            col_f1, col_f2 = st.columns(2)
+            with col_f1:
+                search_plate = st.selectbox("FILTER BY PLATE", ["ALL"] + list(df['Numer Rejestracyjny'].unique()))
+            with col_f2:
+                only_alerts = st.checkbox("SHOW ONLY ALERTS")
             
-    with head_col:
-        try: st.image('logo_vorteza.png', width=120)
-        except: pass
-    
-    st.markdown('<p class="logo-font">VORTEZA - BASE</p>', unsafe_allow_html=True)
-    
-    with st.form("main_form"):
-        st.markdown('<div class="vorteza-card">', unsafe_allow_html=True)
-        rej = st.text_input("LICENSE PLATE")
-        km = st.number_input("MILEAGE (KM)", step=1, value=0)
-        st.markdown('</div>', unsafe_allow_html=True)
+            # Aplikowanie filtrów
+            if search_plate != "ALL":
+                df = df[df['Numer Rejestracyjny'] == search_plate]
+            if only_alerts:
+                df = df[df['Wynik Kontroli'].str.contains("ALERT", na=False)]
+            
+            st.markdown('</div>', unsafe_allow_html=True)
+            
+            # Wyświetlanie danych
+            st.dataframe(df, use_container_width=True, hide_index=True)
+            
+            if st.button("REFRESH DATA"):
+                st.rerun()
+        else:
+            st.warning("No data found in the cloud.")
 
-        wyniki_kontroli = {}
-        if data and "lista_kontrolna" in data:
-            for kat, punkty in data["lista_kontrolna"].items():
-                with st.expander(f"► {kat.upper()}"):
-                    for pt in punkty:
-                        res = st.checkbox(pt, key=f"chk_{kat}_{pt}")
-                        wyniki_kontroli[pt] = "OK" if res else "BRAK/NIE"
+    else:
+        # PANEL KIEROWCY (Formularz)
+        st.markdown('<p class="logo-font">VEHICLE CHECKLIST</p>', unsafe_allow_html=True)
+        data_gh, _ = get_remote_data()
+        
+        with st.form("main_form"):
+            st.markdown('<div class="vorteza-card">', unsafe_allow_html=True)
+            rej = st.text_input("LICENSE PLATE")
+            km = st.number_input("MILEAGE (KM)", step=1, value=0)
+            st.markdown('</div>', unsafe_allow_html=True)
 
-        st.markdown('<br>', unsafe_allow_html=True)
-        with st.expander("► OBSERVATIONS & NOTES"):
-            obs = st.text_area("Notes...", height=100)
+            wyniki = {}
+            if data_gh and "lista_kontrolna" in data_gh:
+                for kat, punkty in data_gh["lista_kontrolna"].items():
+                    with st.expander(f"► {kat.upper()}"):
+                        for pt in punkty:
+                            res = st.checkbox(pt, key=f"chk_{kat}_{pt}")
+                            wyniki[pt] = "OK" if res else "BRAK/NIE"
 
-        if st.form_submit_button("GENERATE AND ENCRYPT PROTOCOL"):
-            if not rej:
-                st.error("Plate required!")
-            else:
-                timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                usterki = [k for k, v in wyniki_kontroli.items() if v == "BRAK/NIE"]
-                wynik_tekst = "System Status: NOMINAL" if not usterki else f"ALERT: {', '.join(usterki)}"
-                
-                row = [timestamp, st.session_state.user, rej, km, wynik_tekst, obs]
-                
-                if save_to_google_sheets(row):
-                    # Zamiast balonów - profesjonalny komunikat systemowy
-                    st.toast('PROTOCOL SECURED AND TRANSMITTED', icon='✅')
-                    st.success("DATA ENCRYPTED AND SAVED TO CLOUD.")
+            obs = st.text_area("Observations...", height=80)
+
+            if st.form_submit_button("TRANSMIT PROTOCOL"):
+                if not rej: st.error("Plate required!")
+                else:
+                    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M")
+                    usterki = [k for k, v in wyniki.items() if v == "BRAK/NIE"]
+                    wynik_tekst = "System Status: NOMINAL" if not usterki else f"ALERT: {', '.join(usterki)}"
+                    
+                    if save_to_google_sheets([timestamp, st.session_state.user, rej, km, wynik_tekst, obs]):
+                        st.toast('DATA SECURED', icon='✅')
+                        st.success("PROTOCOL SAVED.")
