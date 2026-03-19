@@ -7,7 +7,7 @@ import pandas as pd
 from datetime import datetime
 
 # =========================================================
-# 1. POBIERANIE KONFIGURACJI Z TWOJEGO PLIKU JSON
+# 1. KONFIGURACJA I POBIERANIE DANYCH Z JSON (GITHUB)
 # =========================================================
 def get_remote_config():
     try:
@@ -25,7 +25,7 @@ def get_remote_config():
             data = json.loads(base64.b64decode(content['content']).decode('utf-8'))
             return data
     except Exception as e:
-        st.error(f"Błąd krytyczny konfiguracji: {e}")
+        st.error(f"Błąd krytyczny konfiguracji JSON: {e}")
     return None
 
 # =========================================================
@@ -33,7 +33,7 @@ def get_remote_config():
 # =========================================================
 def get_connection():
     try:
-        # Korzystamy z portu 6543 i sslmode='require' dla stabilności w chmurze
+        # Port 6543 i sslmode='require' są kluczowe dla stabilności w Streamlit Cloud
         return psycopg2.connect(
             host=st.secrets["postgres"]["host"],
             port=st.secrets["postgres"]["port"],
@@ -63,7 +63,7 @@ def save_to_supabase(rejestracja, przebieg, uwagi, lista_wynikowa, operator):
             conn.close()
             return True
         except Exception as e:
-            st.error(f"BŁĄD TRANSMISJI: {e}")
+            st.error(f"BŁĄD ZAPISU DO BAZY: {e}")
             return False
     return False
 
@@ -79,11 +79,13 @@ def get_recent_protocols(limit=15):
             df = pd.read_sql(query, conn)
             conn.close()
             return df
-        except: return None
+        except Exception as e:
+            st.error(f"BŁĄD POBIERANIA HISTORII: {e}")
+            return None
     return None
 
 # =========================================================
-# 3. DESIGN VORTEZA 8.5 - FULL CSS & BRANDING
+# 3. DESIGN VORTEZA 8.6 - FULL CSS & DARK SIDEBAR
 # =========================================================
 def apply_vorteza_design():
     try:
@@ -95,154 +97,226 @@ def apply_vorteza_design():
         <style>
         @import url('https://fonts.googleapis.com/css2?family=Michroma&family=Montserrat:wght@400;600&display=swap');
         
+        /* GŁÓWNA APLIKACJA */
         .stApp {{
-            background: linear-gradient(rgba(0,0,0,0.85), rgba(0,0,0,0.85)), url("data:image/png;base64,{bg_base64}");
+            background: linear-gradient(rgba(0,0,0,0.88), rgba(0,0,0,0.88)), url("data:image/png;base64,{bg_base64}");
             background-size: cover; background-attachment: fixed;
         }}
 
+        /* STYLIZACJA BOCZNEGO PASKA (SIDEBAR) */
+        section[data-testid="stSidebar"] {{
+            background-color: rgba(15, 15, 15, 0.98) !important;
+            border-right: 1px solid rgba(181, 136, 99, 0.3) !important;
+        }}
+        
+        section[data-testid="stSidebar"] .stButton > button {{
+            background: rgba(181, 136, 99, 0.1) !important;
+            border: 1px solid #B58863 !important;
+            color: #B58863 !important;
+            font-size: 0.7rem !important;
+        }}
+
+        /* LOGO I TYPOGRAFIA */
         .logo-font {{
             font-family: 'Michroma', sans-serif !important;
             color: #B58863 !important;
-            text-align: center; font-size: 1.5rem !important;
-            letter-spacing: 5px !important; text-transform: uppercase;
-            margin-bottom: 20px;
+            text-align: center; font-size: 1.4rem !important;
+            letter-spacing: 4px !important; text-transform: uppercase;
+            margin-bottom: 30px; margin-top: 10px;
         }}
 
+        /* KARTY WPISÓW */
         .vorteza-card {{
             background: rgba(25, 25, 25, 0.85);
-            border: 1px solid rgba(181, 136, 99, 0.3);
+            border: 1px solid rgba(181, 136, 99, 0.2);
             border-left: 5px solid #B58863;
-            border-radius: 4px; padding: 15px; margin-bottom: 10px;
+            border-radius: 4px; padding: 18px; margin-bottom: 12px;
         }}
 
+        /* ALERTY DLA DYSPOZYTORA */
         .alert-box {{
-            background: rgba(255, 75, 75, 0.15);
-            border: 1px solid #FF4B4B;
+            background: rgba(255, 75, 75, 0.12);
+            border: 1px solid rgba(255, 75, 75, 0.4);
             color: #FF4B4B !important;
             padding: 8px; border-radius: 4px; margin: 4px 0;
-            font-size: 0.85rem; font-weight: 600;
+            font-size: 0.82rem; font-weight: 600;
         }}
 
         .ok-box {{
             color: #28A745 !important;
-            font-size: 0.8rem; margin: 2px 0;
+            font-size: 0.78rem; margin: 2px 0; opacity: 0.8;
         }}
 
+        /* PRZYCISKI GŁÓWNE */
         .stButton > button {{
             background: #B58863 !important;
             color: white !important; font-family: 'Michroma', sans-serif !important;
             width: 100%; border-radius: 2px !important;
-            border: none !important; padding: 15px !important;
-            letter-spacing: 2px;
+            border: none !important; padding: 16px !important;
+            letter-spacing: 2px; transition: 0.3s;
+        }}
+        
+        .stButton > button:hover {{
+            background: #966b4a !important;
+            box-shadow: 0 0 15px rgba(181, 136, 99, 0.4);
         }}
 
+        /* FIX DLA EXPANDERÓW */
         div[data-testid="stExpander"] svg {{ display: none !important; }}
         div[data-testid="stExpander"] summary span {{ color: transparent !important; font-size: 0px !important; }}
         .streamlit-expanderHeader {{
-            background: rgba(181, 136, 99, 0.1) !important;
-            border: 1px solid rgba(181, 136, 99, 0.4) !important;
+            background: rgba(181, 136, 99, 0.08) !important;
+            border: 1px solid rgba(181, 136, 99, 0.3) !important;
+            border-radius: 4px !important;
         }}
         
+        /* OGÓLNE TEKSTY */
         label, p, span, h3 {{ font-family: 'Montserrat', sans-serif !important; color: #FFFFFF !important; }}
+        
+        /* UKRYWANIE ELEMENTÓW SYSTEMOWYCH */
         #MainMenu, footer, header {{visibility: hidden;}}
         .stDeployButton {{display:none;}}
         </style>
     """, unsafe_allow_html=True)
 
+def show_logo():
+    try:
+        # Wyświetlanie logo z pliku lokalnego
+        st.image('logo_vorteza.png', width=200)
+    except:
+        # Jeśli pliku nie ma, wyświetlamy stylowy tekst zastępczy
+        st.markdown('<p class="logo-font">VORTEZA</p>', unsafe_allow_html=True)
+
 # =========================================================
-# 4. LOGIKA APLIKACJI
+# 4. GŁÓWNA LOGIKA APLIKACJI
 # =========================================================
-st.set_page_config(page_title="VORTEZA LOGISTICS", layout="wide", page_icon="🚛")
+st.set_page_config(page_title="VORTEZA LOGISTICS - SQM", layout="wide", page_icon="🚛")
 apply_vorteza_design()
 
 config = get_remote_config()
 
-if "auth" not in st.session_state: st.session_state.auth = False
+if "auth" not in st.session_state:
+    st.session_state.auth = False
 
-# --- EKRAN LOGOWANIA ---
+# --- EKRAN LOGOWANIA (SYSTEM ACCESS) ---
 if not st.session_state.auth:
-    st.markdown("<br><br><div class='vorteza-card' style='text-align:center;'><p class='logo-font'>SYSTEM ACCESS</p></div>", unsafe_allow_html=True)
-    col_l, col_r = st.columns([1,1])
-    with col_l: u = st.text_input("OPERATOR ID")
-    with col_r: p = st.text_input("SECURITY KEY", type="password")
+    st.markdown("<br><br>", unsafe_allow_html=True)
+    col_l, col_mid, col_r = st.columns([1, 2, 1])
     
-    if st.button("AUTHORIZE"):
-        if config and u in config["uzytkownicy"] and config["uzytkownicy"][u] == p:
-            st.session_state.auth, st.session_state.user = True, u
-            st.rerun()
-        else:
-            st.error("ACCESS DENIED")
+    with col_mid:
+        st.markdown("<div class='vorteza-card' style='text-align:center;'>", unsafe_allow_html=True)
+        show_logo()
+        st.markdown("<p style='letter-spacing:3px; color:#B58863; font-size:0.8rem;'>SYSTEM ACCESS</p>", unsafe_allow_html=True)
+        
+        u = st.text_input("OPERATOR ID")
+        p = st.text_input("SECURITY KEY", type="password")
+        
+        if st.button("AUTHORIZE"):
+            if config and u in config["uzytkownicy"] and config["uzytkownicy"][u] == p:
+                st.session_state.auth = True
+                st.session_state.user = u
+                st.rerun()
+            else:
+                st.error("ACCESS DENIED: INVALID CREDENTIALS")
+        st.markdown("</div>", unsafe_allow_html=True)
 
-# --- APLIKACJA PO ZALOGOWANIU ---
+# --- PANEL GŁÓWNY PO AUTORYZACJI ---
 else:
-    tab1, tab2 = st.tabs(["📝 NEW PROTOCOL", "📊 DISPATCHER PANEL"])
+    # Sidebar z Logo i Operatorem
+    with st.sidebar:
+        show_logo()
+        st.markdown(f"<p style='text-align:center; color:#B58863; font-size:0.8rem; margin-top:-20px;'>OPERATOR: {st.session_state.user.upper()}</p>", unsafe_allow_html=True)
+        st.markdown("<br><br>", unsafe_allow_html=True)
+        
+        if st.button("TERMINATE SESSION"):
+            st.session_state.auth = False
+            st.rerun()
 
-    # --- TAB 1: FORMULARZ ---
+    # Taby główne
+    tab1, tab2 = st.tabs(["📝 NEW PROTOCOL", "📊 DISPATCHER DASHBOARD"])
+
+    # --- TAB 1: FORMULARZ PROTOKOŁU ---
     with tab1:
-        st.markdown('<p class="logo-font">VORTEZA - PROTOCOL</p>', unsafe_allow_html=True)
-        with st.form("main_form"):
+        st.markdown('<p class="logo-font">VEHICLE INSPECTION</p>', unsafe_allow_html=True)
+        
+        with st.form("inspection_form"):
             c1, c2 = st.columns(2)
             with c1:
-                rej = st.text_input("LICENSE PLATE")
-                km = st.number_input("MILEAGE (KM)", step=1, value=0)
+                rej = st.text_input("LICENSE PLATE (NR REJESTRACYJNY)", placeholder="np. PO 12345")
+                km = st.number_input("MILEAGE (PRZEBIEG KM)", step=1, value=0)
             with c2:
-                st.write(f"**OPERATOR:** {st.session_state.user.upper()}")
-                st.write(f"**TIMESTAMP:** {datetime.now().strftime('%Y-%m-%d %H:%M')}")
+                st.info(f"Wypełniasz protokół jako: {st.session_state.user.upper()}")
+                st.write(f"Data operacji: {datetime.now().strftime('%d.%m.%Y %H:%M')}")
 
             wyniki = {}
             if config and "lista_kontrolna" in config:
-                for kat, punkty in config["lista_kontrolna"].items():
-                    with st.expander(f"► {kat.upper()}"):
-                        wyniki[kat] = {}
-                        for pt in punkty:
-                            val = st.checkbox(pt, key=f"form_{pt}", value=True)
-                            wyniki[kat][pt] = val
+                for kategoria, punkty in config["lista_kontrolna"].items():
+                    with st.expander(f"► {kategoria.upper()}"):
+                        wyniki[kategoria] = {}
+                        # Ustawiamy 3 kolumny dla oszczędności miejsca w formularzu
+                        cols = st.columns(2)
+                        for idx, pt in enumerate(punkty):
+                            target_col = cols[idx % 2]
+                            with target_col:
+                                val = st.checkbox(pt, key=f"check_{pt}", value=True)
+                                wyniki[kategoria][pt] = val
 
-            uwagi_text = st.text_area("ADDITIONAL OBSERVATIONS / DAMAGE DESCRIPTION")
+            st.markdown("<br>", unsafe_allow_html=True)
+            uwagi_text = st.text_area("ADDITIONAL OBSERVATIONS / DAMAGE DESCRIPTION", height=100)
             
-            if st.form_submit_button("TRANSMIT PROTOCOL"):
-                if not rej: st.error("PLATE REQUIRED")
+            if st.form_submit_button("TRANSMIT AND ENCRYPT PROTOCOL"):
+                if not rej or rej == "":
+                    st.error("WPROWADŹ NUMER REJESTRACYJNY!")
                 else:
-                    with st.spinner("Processing..."):
+                    with st.spinner("TRANSMITTING TO SECURE SERVER..."):
                         if save_to_supabase(rej, km, uwagi_text, wyniki, st.session_state.user):
-                            st.success("PROTOCOL SAVED IN SUPABASE")
+                            st.success("PROTOCOL SAVED AND TRANSMITTED SUCCESSFULLY")
                             st.balloons()
 
-    # --- TAB 2: PODGLĄD DLA DYSPOZYTORA ---
+    # --- TAB 2: DASHBOARD DYSPOZYTORA (HISTORIA I ALERTY) ---
     with tab2:
-        st.markdown('<p class="logo-font">DISPATCHER DASHBOARD</p>', unsafe_allow_html=True)
-        if st.button("REFRESH DATABASE"): st.rerun()
+        st.markdown('<p class="logo-font">LOGISTICS MONITORING</p>', unsafe_allow_html=True)
+        
+        col_ref, col_empty = st.columns([1, 4])
+        with col_ref:
+            if st.button("REFRESH DATA"): st.rerun()
         
         logs = get_recent_protocols()
-        if logs is not None:
+        
+        if logs is not None and not logs.empty:
             for _, row in logs.iterrows():
                 with st.container():
+                    # Nagłówek wpisu w formie karty
                     st.markdown(f"""
                     <div class="vorteza-card">
-                        <span style="color:#B58863;">{row['created_at'].strftime('%H:%M | %d.%m.%Y')}</span> | 
-                        <span style="font-size:1.1rem; font-weight:bold;">🚗 {row['rejestracja']}</span> | 
+                        <span style="color:#B58863; font-weight:600;">{row['created_at'].strftime('%d.%m.%Y %H:%M')}</span> | 
+                        <span style="font-size:1.1rem; font-weight:bold; letter-spacing:1px;">🚗 {row['rejestracja']}</span> | 
                         👤 {row['operator_id']} | 🛣️ {row['przebieg']} KM
                     </div>
                     """, unsafe_allow_html=True)
                     
-                    lista = row['lista_kontrolna']
-                    cols = st.columns(len(lista.keys()))
+                    # Analiza braków w kategoriach
+                    lista_danych = row['lista_kontrolna']
+                    kategorie_cols = st.columns(len(lista_danych.keys()))
                     
-                    for i, (kat, punkty) in enumerate(lista.items()):
-                        with cols[i]:
-                            st.markdown(f"<p style='color:#B58863; font-size:0.7rem; border-bottom:1px solid #333;'>{kat.upper()}</p>", unsafe_allow_html=True)
+                    for i, (kat, punkty) in enumerate(lista_danych.items()):
+                        with kategorie_cols[i]:
+                            st.markdown(f"<p style='color:#B58863; font-size:0.75rem; font-weight:600; border-bottom:1px solid #333; padding-bottom:3px;'>{kat.upper()}</p>", unsafe_allow_html=True)
                             for pt, stan in punkty.items():
                                 if not stan:
+                                    # Czerwony alert dla brakującego elementu
                                     st.markdown(f"<div class='alert-box'>❌ {pt}</div>", unsafe_allow_html=True)
                                 else:
+                                    # Subtelny zielony znacznik dla sprawnego elementu
                                     st.markdown(f"<div class='ok-box'>• {pt}</div>", unsafe_allow_html=True)
                     
-                    if row['uwagi']:
-                        st.info(f"KOMENTARZ: {row['uwagi']}")
-                    st.markdown("<br>", unsafe_allow_html=True)
+                    if row['uwagi'] and row['uwagi'].strip() != "":
+                        st.markdown(f"<div style='background:rgba(181,136,99,0.05); padding:10px; border-radius:4px; border:1px dashed rgba(181,136,99,0.3); font-size:0.85rem; color:#ddd;'><b>OBSERVATIONS:</b> {row['uwagi']}</div>", unsafe_allow_html=True)
+                    
+                    st.markdown("<br><hr style='border:0.5px solid rgba(255,255,255,0.05);'><br>", unsafe_allow_html=True)
         else:
-            st.info("No data found.")
+            st.info("Brak zarejestrowanych protokołów w bazie danych.")
 
-    if st.sidebar.button("TERMINATE SESSION"):
-        st.session_state.auth = False
-        st.rerun()
+# =========================================================
+# KONIEC KODU
+# =========================================================
