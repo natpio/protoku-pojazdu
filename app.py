@@ -56,7 +56,7 @@ def save_to_google_sheets(row_data):
     except: return False
 
 # =========================================================
-# 2. DESIGN VORTEZA 14.0 - STABILNY INTERFEJS
+# 2. DESIGN VORTEZA 14.1 - STABILNY INTERFEJS + LOGO
 # =========================================================
 def apply_vorteza_design():
     st.markdown("""
@@ -79,7 +79,7 @@ def apply_vorteza_design():
             border-right: 1px solid #B58863;
         }
 
-        /* Naprawa nachodzenia - jednolity kontener */
+        /* Kontener wpisu logistycznego */
         .log-entry {
             background-color: #111111;
             border-left: 5px solid #B58863;
@@ -117,6 +117,9 @@ def apply_vorteza_design():
 
         #MainMenu, footer, header {visibility: hidden;}
         .stDeployButton {display:none;}
+        
+        /* Poprawka dla obrazka w sidebarze */
+        [data-testid="stSidebarNav"] {padding-top: 20px;}
         </style>
     """, unsafe_allow_html=True)
 
@@ -131,6 +134,8 @@ if "auth" not in st.session_state: st.session_state.auth = False
 if not st.session_state.auth:
     col1, col2, col3 = st.columns([1, 1.5, 1])
     with col2:
+        try: st.image('logo_vorteza.png', use_container_width=True)
+        except: pass
         st.markdown("<h1 class='vorteza-header'>SYSTEM ACCESS</h1>", unsafe_allow_html=True)
         u = st.text_input("OPERATOR ID")
         p = st.text_input("SECURITY KEY", type="password")
@@ -145,7 +150,11 @@ else:
     is_dispatcher = "dyspozytor" in st.session_state.user.lower() or st.session_state.user == "admin"
     
     with st.sidebar:
-        st.markdown(f"<p style='color:#B58863; font-family:Michroma;'>{st.session_state.user.upper()}</p>", unsafe_allow_html=True)
+        # PRZYWRÓCONE LOGO
+        try: st.image('logo_vorteza.png', width=150)
+        except: pass
+        
+        st.markdown(f"<p style='color:#B58863; font-family:Michroma; font-size:0.9rem; margin-top:10px;'>{st.session_state.user.upper()}</p>", unsafe_allow_html=True)
         st.markdown("---")
         
         if is_dispatcher:
@@ -178,7 +187,6 @@ else:
                 is_alert = any(word in status_raw.upper() for word in ["ALERT", "USTERK", "BRAK"])
                 entry_class = "log-entry log-entry-alert" if is_alert else "log-entry"
                 
-                # Budowanie listy usterek jako HTML
                 fault_html = ""
                 if is_alert:
                     msg = status_raw.split(":")[-1] if ":" in status_raw else status_raw
@@ -190,7 +198,6 @@ else:
                 else:
                     fault_html = '<span class="status-ok">✅ POJAZD SPRAWNY (NOMINAL)</span>'
 
-                # Renderowanie całej karty jako JEDEN blok
                 st.markdown(f"""
                 <div class="{entry_class}">
                     <div style="display:flex; justify-content:space-between; font-family:'Michroma'; border-bottom: 1px solid rgba(181,136,99,0.1); padding-bottom: 8px; margin-bottom: 10px;">
