@@ -56,7 +56,7 @@ def load_from_google_sheets():
     except: return pd.DataFrame()
 
 # =========================================================
-# 2. DESIGN VORTEZA 10.0 - COMMAND CENTER
+# 2. DESIGN VORTEZA 11.0 - CZYTELNOŚĆ I SEGMENTACJA
 # =========================================================
 def apply_vorteza_design():
     try:
@@ -69,7 +69,7 @@ def apply_vorteza_design():
         @import url('https://fonts.googleapis.com/css2?family=Michroma&family=Montserrat:wght@400;600&display=swap');
         
         .stApp {{
-            background: linear-gradient(rgba(0,0,0,0.9), rgba(0,0,0,0.9)), url("data:image/png;base64,{bg_base64}");
+            background: linear-gradient(rgba(0,0,0,0.92), rgba(0,0,0,0.92)), url("data:image/png;base64,{bg_base64}");
             background-size: cover; background-attachment: fixed;
         }}
 
@@ -80,20 +80,31 @@ def apply_vorteza_design():
         }}
 
         .vorteza-card {{
-            background: rgba(20, 20, 20, 0.7);
-            border: 1px solid rgba(181, 136, 99, 0.3);
+            background: rgba(15, 15, 15, 0.85);
+            border: 1px solid rgba(181, 136, 99, 0.2);
             border-radius: 4px; padding: 20px; margin-bottom: 15px;
+        }}
+
+        /* Styl tagów usterek */
+        .fault-tag {{
+            display: inline-block;
+            background: rgba(255, 75, 75, 0.2);
+            color: #FF4B4B;
+            border: 1px solid #FF4B4B;
+            padding: 2px 8px;
+            border-radius: 3px;
+            font-size: 0.75rem;
+            margin: 2px;
+            font-weight: 600;
         }}
 
         .stButton > button {{
             background: #B58863 !important; color: white !important; font-family: 'Michroma', sans-serif !important;
-            width: 100%; border-radius: 2px !important; padding: 15px !important; transition: 0.3s;
+            width: 100%; border-radius: 2px !important; padding: 15px !important;
         }}
-        
-        .stButton > button:hover {{ background: #966b4a !important; box-shadow: 0px 0px 15px rgba(181, 136, 99, 0.4); }}
 
         label, p, span, div {{ font-family: 'Montserrat', sans-serif !important; color: #FFFFFF !important; }}
-        section[data-testid="stSidebar"] {{ background-color: rgba(10, 10, 10, 0.9) !important; border-right: 1px solid #B58863; }}
+        section[data-testid="stSidebar"] {{ background-color: rgba(5, 5, 5, 0.95) !important; border-right: 1px solid #B58863; }}
         #MainMenu, footer, header {{visibility: hidden;}}
         .stDeployButton {{display:none;}}
         </style>
@@ -102,12 +113,11 @@ def apply_vorteza_design():
 # =========================================================
 # 3. LOGIKA SYSTEMU
 # =========================================================
-st.set_page_config(page_title="VORTEZA LOGISTICS", layout="wide")
+st.set_page_config(page_title="VORTEZA COMMAND", layout="wide")
 apply_vorteza_design()
 
 if "auth" not in st.session_state: st.session_state.auth = False
 
-# --- EKRAN LOGOWANIA ---
 if not st.session_state.auth:
     col1, col2, col3 = st.columns([1, 1.5, 1])
     with col2:
@@ -124,80 +134,87 @@ if not st.session_state.auth:
                 st.rerun()
             else: st.error("Access Denied")
 
-# --- PANEL PO ZALOGOWANIU ---
 else:
     with st.sidebar:
         try: st.image('logo_vorteza.png', width=100)
         except: pass
-        st.markdown(f"<p style='color:#B58863; font-size: 0.8rem;'>ACTIVE: {st.session_state.user.upper()}</p>", unsafe_allow_html=True)
+        st.markdown(f"<p style='color:#B58863; font-size: 0.8rem;'>OPERATOR: {st.session_state.user.upper()}</p>", unsafe_allow_html=True)
         st.markdown("---")
         
         is_dispatcher = "dyspozytor" in st.session_state.user.lower() or st.session_state.user == "admin"
         
         if is_dispatcher:
-            st.markdown('<p style="font-family: Michroma; color: #B58863; font-size: 0.7rem;">FILTERS</p>', unsafe_allow_html=True)
+            st.markdown('<p style="font-family: Michroma; color: #B58863; font-size: 0.7rem;">CONTROL FILTERS</p>', unsafe_allow_html=True)
             df_full = load_from_google_sheets()
             if not df_full.empty:
-                # Pobieranie kolumny z uwzględnieniem Twoich nagłówków
-                col_rej_name = 'Numer Rejestracyjny'
-                plates = ["ALL"] + list(df_full[col_rej_name].unique()) if col_rej_name in df_full.columns else ["ALL"]
-                f_plate = st.selectbox("PLATE", plates)
-                f_alerts = st.checkbox("ONLY ALERTS")
-            if st.button("REFRESH DATA"): st.rerun()
+                plates = ["ALL PLATES"] + list(df_full['Numer Rejestracyjny'].unique())
+                f_plate = st.selectbox("SELECT VEHICLE", plates)
+                f_alerts = st.checkbox("SHOW CRITICAL ONLY")
+            if st.button("REFRESH COMMAND CENTER"): st.rerun()
         
         if st.button("LOGOUT"):
             st.session_state.auth = False
             st.rerun()
 
-    # --- WIDOK DYSPOZYTORA ---
     if is_dispatcher:
         st.markdown('<p class="logo-font">DISPATCHER COMMAND CENTER</p>', unsafe_allow_html=True)
         
         if not df_full.empty:
             df = df_full.copy()
-            if f_plate != "ALL": df = df[df['Numer Rejestracyjny'] == f_plate]
+            if f_plate != "ALL PLATES": df = df[df['Numer Rejestracyjny'] == f_plate]
             if f_alerts: df = df[df['Wynik Kontroli'].str.contains("ALERT", na=False)]
             
-            # Konwersja daty do sortowania
-            if 'Data i Godzina' in df.columns:
-                df['Data i Godzina'] = pd.to_datetime(df['Data i Godzina'])
-                df = df.sort_values(by='Data i Godzina', ascending=False)
+            df['Data i Godzina'] = pd.to_datetime(df['Data i Godzina'])
+            df = df.sort_values(by='Data i Godzina', ascending=False)
 
             for _, row in df.iterrows():
-                # MAPOWANIE TWOICH NAGŁÓWKÓW (Zabezpieczenie przed KeyError)
-                val_data = row.get('Data i Godzina', 'N/A')
-                val_op = row.get('Operator ID', 'N/A')
-                val_rej = row.get('Numer Rejestracyjny', 'N/A')
-                val_km = row.get('Przebieg (km)', 0)
-                val_wynik = row.get('Wynik Kontroli', 'Brak danych')
-                val_uwagi = row.get('Uwagi i Obserwacje', '') # Poprawiona nazwa kolumny
+                val_wynik = str(row.get('Wynik Kontroli', ''))
+                is_alert = "ALERT" in val_wynik.upper()
+                
+                # Przetwarzanie tekstu usterek na tagi
+                faults_html = ""
+                if is_alert:
+                    # Wycinamy samą listę usterek po słowie ALERT:
+                    content = val_wynik.split("ALERT: ")
+                    if len(content) > 1:
+                        faults_list = content[1].split(", ")
+                        for f in faults_list:
+                            faults_html += f'<span class="fault-tag">{f}</span>'
+                    else:
+                        faults_html = f'<span class="fault-tag">{val_wynik}</span>'
+                else:
+                    faults_html = '<span style="color:#B58863; font-size:0.9rem;">✅ ALL SYSTEMS OPERATIONAL</span>'
 
-                is_alert = "ALERT" in str(val_wynik).upper()
                 accent = "#FF4B4B" if is_alert else "#B58863"
-                bg = "rgba(255, 75, 75, 0.15)" if is_alert else "rgba(181, 136, 99, 0.05)"
-                glow = "0px 0px 15px rgba(255, 75, 75, 0.3)" if is_alert else "none"
+                bg = "rgba(255, 75, 75, 0.08)" if is_alert else "rgba(181, 136, 99, 0.05)"
 
                 st.markdown(f"""
-                    <div style="background: {bg}; border: 1px solid {accent}; box-shadow: {glow}; border-radius: 4px; padding: 15px; margin-bottom: 15px;">
-                        <div style="display: flex; justify-content: space-between; margin-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 5px;">
-                            <span style="font-family: 'Michroma'; color: {accent};">{val_rej}</span>
-                            <span style="font-size: 0.8rem; opacity: 0.6;">{val_data}</span>
+                    <div style="background: {bg}; border: 1px solid {accent}; border-radius: 4px; padding: 15px; margin-bottom: 12px; border-left: 5px solid {accent};">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 5px;">
+                            <span style="font-family: 'Michroma'; color: {accent}; font-size: 1.1rem;">{row.get('Numer Rejestracyjny', 'N/A')}</span>
+                            <span style="font-size: 0.8rem; opacity: 0.6;">{row.get('Data i Godzina').strftime('%Y-%m-%d | %H:%M')}</span>
                         </div>
-                        <div style="display: flex; gap: 20px; font-size: 0.8rem; margin-bottom: 10px;">
-                            <div><span style="color:{accent};">OP:</span> {val_op}</div>
-                            <div><span style="color:{accent};">KM:</span> {val_km}</div>
+                        
+                        <div style="display: flex; gap: 30px; font-size: 0.85rem; margin-bottom: 12px; font-weight: 600;">
+                            <div><span style="color:{accent}; opacity:0.7; font-weight:400;">OPERATOR:</span> {row.get('Operator ID', 'N/A')}</div>
+                            <div><span style="color:{accent}; opacity:0.7; font-weight:400;">MILEAGE:</span> {row.get('Przebieg (km)', 0)} KM</div>
                         </div>
-                        <div style="background: rgba(0,0,0,0.4); padding: 8px; border-radius: 2px; border-left: 3px solid {accent}; font-size: 0.9rem;">
-                            {val_wynik}
+
+                        <div style="margin-bottom: 5px;">
+                            <p style="font-size: 0.7rem; color: {accent}; margin-bottom: 5px; letter-spacing: 1px; font-weight: 600;">TECHNICAL STATUS / FAULTS</p>
+                            <div style="line-height: 1.6;">
+                                {faults_html}
+                            </div>
                         </div>
-                        {f'<div style="margin-top:8px; font-size:0.8rem; opacity:0.7;">Uwagi: {val_uwagi}</div>' if val_uwagi else ""}
+                        
+                        {f'<div style="margin-top:12px; padding-top:8px; border-top: 1px dotted rgba(255,255,255,0.1); font-size:0.85rem; color:#DDD;"><b>NOTE:</b> {row.get("Uwagi i Obserwacje", "")}</div>' if row.get("Uwagi i Obserwacje") else ""}
                     </div>
                 """, unsafe_allow_html=True)
         else:
-            st.info("No data available.")
+            st.info("No logs available in the system.")
 
-    # --- WIDOK KIEROWCY ---
     else:
+        # WIDOK KIEROWCY
         st.markdown('<p class="logo-font">VEHICLE CHECKLIST</p>', unsafe_allow_html=True)
         data_gh, _ = get_remote_data()
         
@@ -213,21 +230,16 @@ else:
                     with st.expander(f"► {kat.upper()}"):
                         for pt in punkty:
                             res = st.checkbox(pt, key=f"chk_{kat}_{pt}")
-                            wyniki[pt] = "OK" if res else "BRAK/NIE"
+                            wyniki[pt] = "OK" if res else "BRAK"
 
-            # Formularz wysyła dane zgodnie z Twoim nagłówkiem
             obs = st.text_area("Uwagi i Obserwacje")
 
             if st.form_submit_button("TRANSMIT PROTOCOL"):
                 if not rej: st.error("Plate required!")
                 else:
                     ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    errs = [k for k, v in wyniki.items() if v == "BRAK/NIE"]
+                    errs = [k for k, v in wyniki.items() if v == "BRAK"]
                     status = "System Status: NOMINAL" if not errs else f"ALERT: {', '.join(errs)}"
-                    
-                    # KOLEJNOŚĆ DANYCH ZGODNA Z TWOIM ARKUSZEM
-                    row_data = [ts, st.session_state.user, rej, km, status, obs]
-                    
-                    if save_to_google_sheets(row_data):
-                        st.toast('DATA SECURED', icon='✅')
-                        st.success("PROTOCOL SAVED TO CLOUD.")
+                    if save_to_google_sheets([ts, st.session_state.user, rej, km, status, obs]):
+                        st.toast('PROTOCOL SECURED', icon='✅')
+                        st.success("DATA TRANSMITTED TO COMMAND CENTER.")
