@@ -7,12 +7,12 @@ import pandas as pd
 from datetime import datetime
 
 # =========================================================
-# 1. KONFIGURACJA STRONY (MUSI BYĆ PIERWSZA)
+# 1. KONFIGURACJA STRONY - MUSI BYĆ NA SAMEJ GÓRZE
 # =========================================================
 st.set_page_config(page_title="VORTEZA-BASE", layout="centered")
 
 # =========================================================
-# 2. DESIGN VORTEZA 8.0 - TWOJA STYLIZACJA (TOTAL FIX)
+# 2. DESIGN VORTEZA 8.0 - TWOJA STYLIZACJA (NAPRAWA EXPANDERÓW)
 # =========================================================
 def apply_vorteza_design():
     try:
@@ -28,6 +28,7 @@ def apply_vorteza_design():
         .stApp {{
             background: linear-gradient(rgba(0,0,0,0.85), rgba(0,0,0,0.85)), url("data:image/png;base64,{bg_base64}");
             background-size: cover; background-attachment: fixed;
+            background-color: #050505;
         }}
 
         .logo-font {{
@@ -38,7 +39,7 @@ def apply_vorteza_design():
             margin-bottom: 25px;
         }}
 
-        /* --- NAPRAWA BLEDU _arrow_right I NAKŁADANIA SIĘ TEKSTU --- */
+        /* --- FIX DLA _arrow_right --- */
         div[data-testid="stExpander"] svg {{
             display: none !important;
         }}
@@ -88,34 +89,34 @@ def apply_vorteza_design():
     """, unsafe_allow_html=True)
 
 # =========================================================
-# 3. KOMUNIKACJA Z BAZĄ (NAPRAWA BŁĘDU TENANT)
+# 3. POŁĄCZENIE Z BAZĄ (NAPRAWA BŁĘDU TENANT)
 # =========================================================
 def get_connection():
     try:
-        # Wyciągamy project_id bezpośrednio z nazwy użytkownika (część po kropce)
-        full_user = st.secrets["postgres"]["user"]
-        project_id = full_user.split('.')[1] if '.' in full_user else "twjjscfizxnvbxwxqcbw"
+        # Wyciągamy project_id: 'twjjscfizxnvbxwxqcbw'
+        user_val = st.secrets["postgres"]["user"]
+        project_id = user_val.split('.')[1] if '.' in user_val else "twjjscfizxnvbxwxqcbw"
         
         return psycopg2.connect(
             host=st.secrets["postgres"]["host"],
             port=st.secrets["postgres"]["port"],
             database=st.secrets["postgres"]["database"],
-            user=full_user,
+            user=user_val,
             password=st.secrets["postgres"]["password"],
             sslmode="require",
-            # TA LINIA JEST KLUCZEM DO PORTU 6543
-            options=f"-c project={project_id}",
-            connect_timeout=5
+            # TA LINIA JEST KLUCZOWA DLA PORTU 6543
+            options=f"-c endpoint={project_id}",
+            connect_timeout=10
         )
     except Exception as e:
         st.error(f"DATABASE CONNECTION ERROR: {e}")
         return None
 
 # =========================================================
-# 4. POBIERANIE KONFIGURACJI (GITHUB)
+# 4. POBIERANIE KONFIGURACJI (GITHUB) - Z CACHEM
 # =========================================================
 @st.cache_data(ttl=600)
-def load_remote_config():
+def load_vorteza_config():
     try:
         token = st.secrets["G_TOKEN"]["G_TOKEN"]
         url = "https://api.github.com/repos/natpio/protoku-pojazdu/contents/lista_kontrolna.json"
@@ -126,18 +127,19 @@ def load_remote_config():
             return json.loads(base64.b64decode(content['content']).decode('utf-8'))
     except:
         pass
+    # Backup, jeśli GitHub nie odpowie
     return {"uzytkownicy": {"admin": "vorteza"}, "lista_kontrolna": {}}
 
 # =========================================================
-# 5. LOGIKA GŁÓWNA
+# 5. LOGIKA GŁÓWNA APLIKACJI
 # =========================================================
 apply_vorteza_design()
-config_data = load_remote_config()
+data_config = load_vorteza_config()
 
 if "auth" not in st.session_state:
     st.session_state.auth = False
 
-# EKRAN LOGOWANIA
+# --- EKRAN LOGOWANIA ---
 if not st.session_state.auth:
     st.markdown("<br><br><div class='vorteza-card' style='text-align:center;'><p class='logo-font'>SYSTEM ACCESS</p></div>", unsafe_allow_html=True)
     col1, col2, col3 = st.columns([1, 2, 1])
@@ -145,13 +147,13 @@ if not st.session_state.auth:
         u = st.text_input("OPERATOR ID")
         p = st.text_input("SECURITY KEY", type="password")
         if st.button("AUTHORIZE"):
-            if u in config_data.get("uzytkownicy", {}) and config_data["uzytkownicy"][u] == p:
+            if u in data_config.get("uzytkownicy", {}) and data_config["uzytkownicy"][u] == p:
                 st.session_state.auth, st.session_state.user = True, u
                 st.rerun()
             else:
                 st.error("ACCESS DENIED")
 
-# EKRAN GŁÓWNY
+# --- EKRAN GŁÓWNY PO ZALOGOWANIU ---
 else:
     tab1, tab2 = st.tabs(["📝 NOWY PROTOKÓŁ", "📊 HISTORIA"])
 
@@ -164,54 +166,60 @@ else:
             km = st.number_input("MILEAGE (KM)", step=1, value=0)
             st.markdown('</div>', unsafe_allow_html=True)
 
-            wyniki = {}
-            if "lista_kontrolna" in config_data:
-                for kat, punkty in config_data["lista_kontrolna"].items():
-                    # TWOJA LISTA ZWIJANA Z SYMBOLEM ►
+            # Sekcje dynamiczne z Twoją strzałką ►
+            pomiary = {}
+            if "lista_kontrolna" in data_config:
+                for kat, punkty in data_config["lista_kontrolna"].items():
                     with st.expander(f"► {kat.upper()}"):
-                        wyniki[kat] = {}
+                        pomiary[kat] = {}
                         for pt in punkty:
-                            wyniki[kat][pt] = st.checkbox(pt, key=f"v_{kat}_{pt}", value=False)
+                            pomiary[kat][pt] = st.checkbox(pt, key=f"c_{kat}_{pt}", value=False)
 
             st.markdown('<br>', unsafe_allow_html=True)
             with st.expander("► OBSERVATIONS & NOTES"):
                 obs = st.text_area("Notes...", height=100)
 
+            st.markdown('<br>', unsafe_allow_html=True)
             if st.form_submit_button("GENERATE AND ENCRYPT PROTOCOL"):
                 if not rej:
                     st.error("Plate required!")
                 else:
+                    # Łączymy się z bazą dopiero po kliknięciu guzika
                     conn = get_connection()
                     if conn:
                         try:
                             cur = conn.cursor()
-                            # Używamy Twojej nazwy tabeli i kolumny data_wpisu
                             query = """
                                 INSERT INTO protokoly_vorteza 
                                 (rejestracja, przebieg, uwagi, lista_kontrolna, operator_id) 
                                 VALUES (%s, %s, %s, %s, %s)
                             """
-                            cur.execute(query, (rej, km, obs, json.dumps(wyniki), st.session_state.user))
+                            cur.execute(query, (rej, km, obs, json.dumps(pomiary), st.session_state.user))
                             conn.commit()
                             st.success("PROTOCOL TRANSMITTED"); st.balloons()
                             cur.close()
                             conn.close()
                         except Exception as e:
-                            st.error(f"ZAPIS NIEUDANY: {e}")
+                            st.error(f"DATABASE ERROR: {e}")
 
     with tab2:
-        st.markdown('<p class="logo-font">RECENT LOGS</p>', unsafe_allow_html=True)
-        if st.button("REFRESH"):
+        st.markdown('<p class="logo-font">LOGISTICS FEED</p>', unsafe_allow_html=True)
+        if st.button("REFRESH DATA"):
             st.rerun()
             
         conn = get_connection()
         if conn:
             try:
-                # Pobieranie danych zgodne z Twoim schematem (data_wpisu)
-                query = "SELECT data_wpisu, rejestracja, operator_id FROM protokoly_vorteza ORDER BY data_wpisu DESC LIMIT 10"
+                # Używamy Twojej kolumny data_wpisu
+                query = "SELECT data_wpisu, rejestracja, operator_id FROM protokoly_vorteza ORDER BY data_wpisu DESC LIMIT 15"
                 df = pd.read_sql(query, conn)
                 for _, row in df.iterrows():
-                    st.markdown(f"<div class='vorteza-card'><b>{row['rejestracja']}</b> | {row['operator_id']} | {row['data_wpisu']}</div>", unsafe_allow_html=True)
+                    with st.container():
+                        st.markdown(f"""
+                            <div class='vorteza-card'>
+                                <b>{row['rejestracja']}</b> | {row['operator_id']} | {row['data_wpisu']}
+                            </div>
+                        """, unsafe_allow_html=True)
                 conn.close()
-            except:
-                st.info("Brak danych do wyświetlenia.")
+            except Exception as e:
+                st.info("No records found or table error.")
