@@ -56,7 +56,7 @@ def save_to_google_sheets(row_data):
     except: return False
 
 # =========================================================
-# 2. DESIGN VORTEZA 13.0 - SIDEBAR & CLEAN GRID
+# 2. DESIGN VORTEZA 14.0 - STABILNY INTERFEJS
 # =========================================================
 def apply_vorteza_design():
     st.markdown("""
@@ -74,24 +74,47 @@ def apply_vorteza_design():
             text-transform: uppercase;
         }
 
-        /* Styl Sidebar */
         section[data-testid="stSidebar"] {
             background-color: rgba(10, 10, 10, 0.98) !important;
             border-right: 1px solid #B58863;
         }
 
-        .card-container {
+        /* Naprawa nachodzenia - jednolity kontener */
+        .log-entry {
             background-color: #111111;
             border-left: 5px solid #B58863;
             border-radius: 4px;
-            padding: 15px;
-            margin-bottom: 5px;
+            padding: 20px;
+            margin-bottom: 25px;
             color: white;
+            font-family: 'Montserrat', sans-serif;
         }
 
-        .card-alert { border-left: 5px solid #FF4B4B !important; }
+        .log-entry-alert { border-left: 5px solid #FF4B4B !important; }
 
-        h3, p, span, label { font-family: 'Montserrat', sans-serif !important; }
+        .fault-list {
+            background: rgba(255, 75, 75, 0.1);
+            border: 1px solid rgba(255, 75, 75, 0.3);
+            border-radius: 4px;
+            padding: 10px;
+            margin-top: 10px;
+        }
+
+        .fault-item {
+            color: #FF4B4B;
+            font-size: 0.85rem;
+            display: block;
+            margin-bottom: 2px;
+        }
+
+        .status-ok {
+            color: #B58863;
+            font-weight: bold;
+            font-size: 0.9rem;
+            margin-top: 10px;
+            display: block;
+        }
+
         #MainMenu, footer, header {visibility: hidden;}
         .stDeployButton {display:none;}
         </style>
@@ -105,7 +128,6 @@ apply_vorteza_design()
 
 if "auth" not in st.session_state: st.session_state.auth = False
 
-# --- LOGOWANIE ---
 if not st.session_state.auth:
     col1, col2, col3 = st.columns([1, 1.5, 1])
     with col2:
@@ -119,13 +141,11 @@ if not st.session_state.auth:
                 st.rerun()
             else: st.error("Access Denied")
 
-# --- PANEL PO ZALOGOWANIU ---
 else:
     is_dispatcher = "dyspozytor" in st.session_state.user.lower() or st.session_state.user == "admin"
     
-    # --- PRZYWRÓCONY PASEK BOCZNY ---
     with st.sidebar:
-        st.markdown(f"<p style='color:#B58863; font-family:Michroma; font-size:0.8rem;'>{st.session_state.user.upper()}</p>", unsafe_allow_html=True)
+        st.markdown(f"<p style='color:#B58863; font-family:Michroma;'>{st.session_state.user.upper()}</p>", unsafe_allow_html=True)
         st.markdown("---")
         
         if is_dispatcher:
@@ -142,7 +162,6 @@ else:
             st.session_state.auth = False
             st.rerun()
 
-    # --- WIDOK DYSPOZYTORA ---
     if is_dispatcher:
         st.markdown("<h2 class='vorteza-header'>CENTRUM DYSPOZYTORA</h2>", unsafe_allow_html=True)
         
@@ -151,53 +170,46 @@ else:
             if f_plate != "WSZYSTKIE": df = df[df['Numer Rejestracyjny'] == f_plate]
             if f_alerts: df = df[df['Wynik Kontroli'].str.contains("ALERT|USTERK", na=False, case=False)]
             
-            # Sortowanie: najnowsze na górze
             df['Data i Godzina'] = pd.to_datetime(df['Data i Godzina'])
             df = df.sort_values(by='Data i Godzina', ascending=False)
-
-            # Liczniki na górze
-            c1, c2 = st.columns(2)
-            c1.metric("PROTOKOŁY", len(df))
-            c2.metric("ALERTY", len(df[df['Wynik Kontroli'].str.contains("ALERT|USTERK", na=False, case=False)]))
 
             for _, row in df.iterrows():
                 status_raw = str(row.get('Wynik Kontroli', ''))
                 is_alert = any(word in status_raw.upper() for word in ["ALERT", "USTERK", "BRAK"])
-                card_class = "card-container card-alert" if is_alert else "card-container"
+                entry_class = "log-entry log-entry-alert" if is_alert else "log-entry"
                 
-                # Renderowanie Kontenera Pojazdu
+                # Budowanie listy usterek jako HTML
+                fault_html = ""
+                if is_alert:
+                    msg = status_raw.split(":")[-1] if ":" in status_raw else status_raw
+                    items = msg.split(",")
+                    fault_html = '<div class="fault-list">'
+                    for item in items:
+                        fault_html += f'<span class="fault-item">⚠️ {item.strip()}</span>'
+                    fault_html += '</div>'
+                else:
+                    fault_html = '<span class="status-ok">✅ POJAZD SPRAWNY (NOMINAL)</span>'
+
+                # Renderowanie całej karty jako JEDEN blok
                 st.markdown(f"""
-                <div class="{card_class}">
-                    <div style="display:flex; justify-content:space-between; font-family:'Michroma';">
-                        <span style="font-size:1.1rem; color:#B58863;">{row.get('Numer Rejestracyjny', 'N/A')}</span>
-                        <span style="opacity:0.5; font-size:0.8rem;">{row.get('Data i Godzina').strftime('%Y-%m-%d %H:%M')}</span>
+                <div class="{entry_class}">
+                    <div style="display:flex; justify-content:space-between; font-family:'Michroma'; border-bottom: 1px solid rgba(181,136,99,0.1); padding-bottom: 8px; margin-bottom: 10px;">
+                        <span style="font-size:1.2rem; color:#B58863;">{row.get('Numer Rejestracyjny', 'N/A')}</span>
+                        <span style="opacity:0.5; font-size:0.8rem;">{row.get('Data i Godzina').strftime('%Y-%m-%d | %H:%M')}</span>
                     </div>
-                    <div style="margin-top: 5px; font-size: 0.8rem;">
-                        OP: <b>{row.get('Operator ID', 'N/A')}</b> | KM: <b>{row.get('Przebieg (km)', 0)}</b>
+                    <div style="font-size: 0.85rem; margin-bottom: 15px;">
+                        OPERATOR: <b style="color:#B58863;">{row.get('Operator ID', 'N/A')}</b> | 
+                        PRZEBIEG: <b style="color:#B58863;">{row.get('Przebieg (km)', 0)} KM</b>
                     </div>
+                    {fault_html}
+                    {f'<div style="margin-top:15px; font-size:0.8rem; border-top: 1px dotted rgba(255,255,255,0.1); padding-top:10px; opacity:0.8;"><i>Notatka: {row.get("Uwagi i Obserwacje", "")}</i></div>' if row.get("Uwagi i Obserwacje") else ""}
                 </div>
                 """, unsafe_allow_html=True)
-                
-                # Wyświetlanie szczegółów pod kontenerem (bezpieczne renderowanie)
-                if is_alert:
-                    with st.expander("⚠️ SZCZEGÓŁY USTEREK", expanded=True):
-                        # Wyodrębnienie listy
-                        msg = status_raw.split(":")[-1] if ":" in status_raw else status_raw
-                        items = msg.split(",")
-                        for item in items:
-                            st.markdown(f"<span style='color:#FF4B4B;'>• {item.strip()}</span>", unsafe_allow_html=True)
-                else:
-                    st.success("POJAZD SPRAWNY")
-
-                if row.get('Uwagi i Obserwacje'):
-                    st.caption(f"Notatka: {row.get('Uwagi i Obserwacje')}")
-                
-                st.markdown("---")
         else:
             st.info("Brak wpisów w bazie danych.")
 
-    # --- WIDOK KIEROWCY ---
     else:
+        # WIDOK KIEROWCY
         st.markdown("<h2 class='vorteza-header'>PROTOKÓŁ POJAZDU</h2>", unsafe_allow_html=True)
         data_gh, _ = get_remote_data()
         
