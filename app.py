@@ -7,15 +7,11 @@ import pandas as pd
 from datetime import datetime
 
 # =========================================================
-# 1. KONFIGURACJA STRONY (MUSI BYĆ PIERWSZA)
-# =========================================================
-st.set_page_config(page_title="VORTEZA LOGISTICS", layout="wide")
-
-# =========================================================
-# 2. KOMUNIKACJA Z BAZĄ (Z OPTYMALIZACJĄ CZASU)
+# 1. KOMUNIKACJA Z BAZĄ (ZGODNIE ZE SCHEMATEM SUPABASE)
 # =========================================================
 def get_connection():
     try:
+        # Pobieranie ID projektu z nazwy użytkownika w secrets
         user_parts = st.secrets["postgres"]["user"].split('.')
         project_id = user_parts[1] if len(user_parts) > 1 else "twjjscfizxnvbxwxqcbw"
         
@@ -26,10 +22,12 @@ def get_connection():
             user=st.secrets["postgres"]["user"],
             password=st.secrets["postgres"]["password"],
             sslmode="require",
+            # Rozwiązanie błędu "Tenant not found"
             options=f"-c endpoint={project_id}",
-            connect_timeout=5 # Zmniejszony timeout, by nie mrozić apki
+            connect_timeout=10
         )
     except Exception as e:
+        st.error(f"BŁĄD POŁĄCZENIA: {e}")
         return None
 
 def save_to_supabase(rejestracja, przebieg, uwagi, lista_wynikowa, operator):
@@ -37,6 +35,7 @@ def save_to_supabase(rejestracja, przebieg, uwagi, lista_wynikowa, operator):
     if conn:
         try:
             cur = conn.cursor()
+            # Kolumny 1:1 z Twojego zdjęcia bazy danych
             query = """
                 INSERT INTO protokoly_vorteza 
                 (rejestracja, przebieg, uwagi, lista_kontrolna, operator_id) 
@@ -48,20 +47,16 @@ def save_to_supabase(rejestracja, przebieg, uwagi, lista_wynikowa, operator):
             conn.close()
             return True
         except Exception as e:
-            st.error(f"Błąd zapisu: {e}")
+            st.error(f"BŁĄD ZAPISU: {e}")
             return False
     return False
 
-@st.cache_data(ttl=60) # Cache na 60 sekund, by nie odpytywać bazy przy każdym kliknięciu
 def get_recent_protocols(limit=10):
     conn = get_connection()
     if conn:
         try:
-            query = """
-                SELECT data_wpisu, rejestracja, operator_id, lista_kontrolna, uwagi, przebieg 
-                FROM protokoly_vorteza 
-                ORDER BY data_wpisu DESC LIMIT %s
-            """
+            # Użycie Twojej kolumny data_wpisu
+            query = "SELECT data_wpisu, rejestracja, operator_id, lista_kontrolna FROM protokoly_vorteza ORDER BY data_wpisu DESC LIMIT %s"
             df = pd.read_sql(query, conn, params=(limit,))
             conn.close()
             return df
@@ -69,96 +64,156 @@ def get_recent_protocols(limit=10):
     return None
 
 # =========================================================
-# 3. DESIGN I UKŁAD (NATYCHMIASTOWE RENDEROWANIE)
+# 2. DESIGN VORTEZA 8.0 - TWOJA ORYGINALNA STYLIZACJA
 # =========================================================
 def apply_vorteza_design():
-    st.markdown("""
+    try:
+        with open('bg_vorteza.png', 'rb') as f:
+            bg_base64 = base64.b64encode(f.read()).decode()
+    except: 
+        bg_base64 = ""
+    
+    st.markdown(f"""
         <style>
         @import url('https://fonts.googleapis.com/css2?family=Michroma&family=Montserrat:wght@400;600&display=swap');
-        .stApp { background-color: #050505; }
-        section[data-testid="stSidebar"] { background-color: #080808 !important; border-right: 1px solid #B5886344 !important; }
-        .logo-font { font-family: 'Michroma', sans-serif; color: #B58863; text-align: center; font-size: 1.5rem; letter-spacing: 5px; text-transform: uppercase; margin: 20px 0; }
-        .vorteza-card { background: rgba(15, 15, 15, 0.95); border: 1px solid #B5886333; border-left: 5px solid #B58863; border-radius: 4px; padding: 20px; margin-bottom: 15px; }
-        .stButton > button { background: #B58863 !important; color: white !important; font-family: 'Michroma', sans-serif; width: 100%; padding: 16px !important; border: none; }
-        .streamlit-expanderHeader { background-color: rgba(181, 136, 99, 0.1) !important; color: #B58863 !important; }
-        #MainMenu, footer, header {visibility: hidden;}
+        
+        .stApp {{
+            background: linear-gradient(rgba(0,0,0,0.85), rgba(0,0,0,0.85)), url("data:image/png;base64,{bg_base64}");
+            background-size: cover; background-attachment: fixed;
+        }}
+
+        .logo-font {{
+            font-family: 'Michroma', sans-serif !important;
+            color: #B58863 !important;
+            text-align: center; font-size: 1.5rem !important;
+            letter-spacing: 5px !important; text-transform: uppercase;
+            margin-bottom: 25px;
+        }}
+
+        /* --- TWOJA NAPRAWA BLEDU _arrow_right --- */
+        div[data-testid="stExpander"] svg {{
+            display: none !important;
+        }}
+        
+        div[data-testid="stExpander"] summary span {{
+            color: transparent !important;
+            font-size: 0px !important;
+        }}
+
+        .streamlit-expanderHeader {{
+            background-color: rgba(181, 136, 99, 0.1) !important;
+            border: 1px solid rgba(181, 136, 99, 0.3) !important;
+            border-left: 5px solid #B58863 !important;
+            border-radius: 4px !important;
+            padding: 12px !important;
+        }}
+
+        div[data-testid="stExpander"] p {{
+            font-family: 'Michroma', sans-serif !important;
+            color: #B58863 !important;
+            font-size: 0.8rem !important;
+            letter-spacing: 2px !important;
+            visibility: visible !important;
+            display: block !important;
+            margin: 0 !important;
+        }}
+
+        .vorteza-card {{
+            background: rgba(20, 20, 20, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 4px; padding: 20px; margin-bottom: 15px;
+        }}
+
+        .stButton > button {{
+            background: #B58863 !important;
+            color: white !important; font-family: 'Michroma', sans-serif !important;
+            width: 100%; border-radius: 2px !important;
+            border: none !important; padding: 18px !important;
+            letter-spacing: 2px;
+        }}
+
+        label, p, span {{ font-family: 'Montserrat', sans-serif !important; color: #FFFFFF !important; }}
+        
+        #MainMenu, footer, header {{visibility: hidden;}}
+        .stDeployButton {{display:none;}}
         </style>
     """, unsafe_allow_html=True)
 
+# =========================================================
+# 3. LOGIKA APLIKACJI
+# =========================================================
+st.set_page_config(page_title="VORTEZA-BASE", layout="centered")
 apply_vorteza_design()
 
-# =========================================================
-# 4. POBIERANIE CONFIGU (Z OBSŁUGĄ BŁĘDÓW)
-# =========================================================
-@st.cache_data(ttl=300) # Zapamiętaj listę kontrolną na 5 minut
-def load_config():
+# Pobieranie konfiguracji z GitHub (użytkownicy i punkty kontrolne)
+@st.cache_data(ttl=300)
+def get_config():
     try:
-        g_token = st.secrets["G_TOKEN"]["G_TOKEN"]
+        token = st.secrets["G_TOKEN"]["G_TOKEN"]
         url = "https://api.github.com/repos/natpio/protoku-pojazdu/contents/lista_kontrolna.json"
-        res = requests.get(url, headers={"Authorization": f"token {g_token}"}, timeout=5)
+        res = requests.get(url, headers={"Authorization": f"token {token}"})
         if res.status_code == 200:
             return json.loads(base64.b64decode(res.json()['content']).decode('utf-8'))
     except: return None
     return None
 
-config = load_config()
+data = get_config()
+if not data: data = {"uzytkownicy": {"admin": "vorteza"}, "lista_kontrolna": {}}
 
-# =========================================================
-# 5. LOGIKA SESJI I INTERFEJS
-# =========================================================
-if "auth" not in st.session_state:
-    st.session_state.auth = False
+if "auth" not in st.session_state: st.session_state.auth = False
 
+# --- LOGOWANIE ---
 if not st.session_state.auth:
-    st.markdown("<br><br><p class='logo-font'>VORTEZA SYSTEM</p>", unsafe_allow_html=True)
-    _, col2, _ = st.columns([1, 2, 1])
-    with col2:
-        st.markdown("<div class='vorteza-card'>", unsafe_allow_html=True)
-        login = st.text_input("OPERATOR ID")
-        pin = st.text_input("SECURITY KEY", type="password")
-        if st.button("AUTHORIZE"):
-            if config and login in config["uzytkownicy"] and config["uzytkownicy"][login] == pin:
-                st.session_state.auth, st.session_state.user = True, login
-                st.rerun()
-            else: st.error("ACCESS DENIED")
-        st.markdown("</div>", unsafe_allow_html=True)
-else:
-    with st.sidebar:
-        st.markdown("<p class='logo-font' style='font-size:1.1rem;'>VORTEZA</p>", unsafe_allow_html=True)
-        st.write(f"OPERATOR: **{st.session_state.user.upper()}**")
-        if st.button("LOGOUT"):
-            st.session_state.auth = False
+    st.markdown("<br><br><div class='vorteza-card' style='text-align:center;'><p class='logo-font'>SYSTEM ACCESS</p></div>", unsafe_allow_html=True)
+    u = st.text_input("OPERATOR ID")
+    p = st.text_input("SECURITY KEY", type="password")
+    if st.button("AUTHORIZE"):
+        if u in data.get("uzytkownicy", {}) and data["uzytkownicy"][u] == p:
+            st.session_state.auth, st.session_state.user = True, u
             st.rerun()
+        else: st.error("ACCESS DENIED")
 
-    tab1, tab2 = st.tabs(["📝 NOWY PROTOKÓŁ", "📊 MONITORING"])
+# --- PANEL GŁÓWNY ---
+else:
+    tab1, tab2 = st.tabs(["📝 PROTOKÓŁ", "📊 HISTORIA"])
 
     with tab1:
-        st.markdown("<p class='logo-font'>VEHICLE INSPECTION</p>", unsafe_allow_html=True)
-        with st.form("form_v11"):
-            c1, c2 = st.columns(2)
-            with c1:
-                nr_rej = st.text_input("NUMER REJESTRACYJNY")
-                km = st.number_input("PRZEBIEG (KM)", step=1, value=0)
-            with c2:
-                st.write(f"DATA: {datetime.now().strftime('%d.%m.%Y %H:%M')}")
+        st.markdown('<p class="logo-font">VORTEZA - BASE</p>', unsafe_allow_html=True)
+        with st.form("main_form"):
+            # Dane pojazdu
+            st.markdown('<div class="vorteza-card">', unsafe_allow_html=True)
+            rej = st.text_input("LICENSE PLATE")
+            km = st.number_input("MILEAGE (KM)", step=1, value=0)
+            st.markdown('</div>', unsafe_allow_html=True)
 
-            pomiary = {}
-            if config and "lista_kontrolna" in config:
-                for kat, punkty in config["lista_kontrolna"].items():
-                    with st.expander(f"➕ {kat.upper()}"):
-                        pomiary[kat] = {}
-                        for pkt in punkty:
-                            pomiary[kat][pkt] = st.checkbox(pkt, key=f"c_{pkt}", value=False)
-            
-            uwagi = st.text_area("UWAGI I OPIS USZKODZEŃ")
-            if st.form_submit_button("WYŚLIJ"):
-                if nr_rej and save_to_supabase(nr_rej, km, uwagi, pomiary, st.session_state.user):
-                    st.success("ZAPISANO"); st.balloons()
+            # Twoje dynamiczne sekcje z poprawionym expanderem
+            wyniki_kontroli = {}
+            if "lista_kontrolna" in data:
+                for kat, punkty in data["lista_kontrolna"].items():
+                    with st.expander(f"► {kat.upper()}"):
+                        wyniki_kontroli[kat] = {}
+                        for pt in punkty:
+                            wyniki_kontroli[kat][pt] = st.checkbox(pt, key=f"chk_{kat}_{pt}", value=False)
+
+            st.markdown('<br>', unsafe_allow_html=True)
+            with st.expander("► OBSERVATIONS & NOTES"):
+                obs = st.text_area("Notes...", height=100)
+
+            st.markdown('<br>', unsafe_allow_html=True)
+            if st.form_submit_button("GENERATE AND ENCRYPT PROTOCOL"):
+                if not rej: 
+                    st.error("Plate required!")
+                else:
+                    # Zapis do Supabase
+                    if save_to_supabase(rej, km, obs, wyniki_kontroli, st.session_state.user):
+                        st.success("PROTOCOL TRANSMITTED"); st.balloons()
 
     with tab2:
-        st.markdown("<p class='logo-font'>LOGISTICS FEED</p>", unsafe_allow_html=True)
-        historia = get_recent_protocols()
-        if historia is not None:
-            for _, r in historia.iterrows():
+        st.markdown('<p class="logo-font">HISTORY FEED</p>', unsafe_allow_html=True)
+        if st.button("ODŚWIEŻ"): st.rerun()
+        
+        hist = get_recent_protocols()
+        if hist is not None:
+            for _, row in hist.iterrows():
                 with st.container():
-                    st.markdown(f"<div class='vorteza-card'><b>{r['rejestracja']}</b> | {r['operator_id']} | {r['data_wpisu'].strftime('%d.%m %H:%M')}</div>", unsafe_allow_html=True)
+                    st.markdown(f"<div class='vorteza-card'><b>{row['rejestracja']}</b> | {row['operator_id']} | {row['data_wpisu']}</div>", unsafe_allow_html=True)
