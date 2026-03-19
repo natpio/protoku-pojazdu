@@ -38,9 +38,11 @@ def get_remote_data():
     return None, None
 
 def get_bg_base64():
+    """Pobiera tło i czyści znaki nowej linii, które psują CSS."""
     content = get_github_file("bg_vorteza.png")
-    if content:
-        return content['content'].replace("\n", "")
+    if content and 'content' in content:
+        # GitHub zwraca Base64 z \n, co uniemożliwia poprawne działanie url("data:...")
+        return content['content'].replace("\n", "").replace("\r", "")
     return ""
 
 def get_gspread_client():
@@ -66,48 +68,71 @@ def save_to_google_sheets(row_data):
     except: return False
 
 # =========================================================
-# 2. DESIGN VORTEZA 15.1
+# 2. DESIGN VORTEZA 15.2 - FIX TŁA
 # =========================================================
 def apply_vorteza_design():
     bg_data = get_bg_base64()
-    bg_style = f"""
-        background: linear-gradient(rgba(0,0,0,0.85), rgba(0,0,0,0.85)), 
-                    url("data:image/png;base64,{bg_data}");
-        background-size: cover;
-        background-attachment: fixed;
-    """ if bg_data else "background-color: #050505;"
+    
+    # CSS dla tła - dodano !important i sprawdzanie danych
+    if bg_data:
+        bg_css = f"""
+        .stApp {{
+            background: linear-gradient(rgba(0,0,0,0.8), rgba(0,0,0,0.8)), 
+                        url("data:image/png;base64,{bg_data}") !important;
+            background-size: cover !important;
+            background-position: center !important;
+            background-attachment: fixed !important;
+        }}
+        """
+    else:
+        bg_css = ".stApp { background-color: #050505 !important; }"
 
     st.markdown(f"""
         <style>
         @import url('https://fonts.googleapis.com/css2?family=Michroma&family=Montserrat:wght@400;700&display=swap');
-        .stApp {{ {bg_style} }}
+        
+        {bg_css}
+        
         .vorteza-header {{
             font-family: 'Michroma', sans-serif;
             color: #B58863; text-align: center; letter-spacing: 4px; padding: 20px; text-transform: uppercase;
         }}
+        
         section[data-testid="stSidebar"] {{
             background-color: rgba(5, 5, 5, 0.95) !important;
             border-right: 1px solid #B58863;
         }}
+
         .log-entry {{
-            background-color: rgba(17, 17, 17, 0.9);
-            border-left: 5px solid #B58863; border-radius: 4px; padding: 20px; margin-bottom: 25px;
-            color: white; font-family: 'Montserrat', sans-serif; backdrop-filter: blur(5px);
+            background-color: rgba(20, 20, 20, 0.85);
+            border-left: 5px solid #B58863;
+            border-radius: 4px;
+            padding: 20px;
+            margin-bottom: 25px;
+            color: white;
+            font-family: 'Montserrat', sans-serif;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
         }}
+
         .log-entry-alert {{ border-left: 5px solid #FF4B4B !important; }}
+
         .fault-list {{
-            background: rgba(255, 75, 75, 0.15); border: 1px solid rgba(255, 75, 75, 0.4);
+            background: rgba(255, 75, 75, 0.15);
+            border: 1px solid rgba(255, 75, 75, 0.4);
             border-radius: 4px; padding: 12px; margin-top: 10px;
         }}
+
         .fault-item {{ color: #FF4B4B; font-size: 0.85rem; display: block; margin-bottom: 3px; font-weight: 600; }}
         .status-ok {{ color: #B58863; font-weight: bold; font-size: 0.9rem; margin-top: 10px; display: block; }}
+        
         #MainMenu, footer, header {{visibility: hidden;}}
         .stDeployButton {{display:none;}}
         </style>
     """, unsafe_allow_html=True)
 
 # =========================================================
-# 3. GŁÓWNA LOGIKA
+# 3. LOGIKA APLIKACJI
 # =========================================================
 st.set_page_config(page_title="VORTEZA LOGISTICS", layout="wide")
 apply_vorteza_design()
@@ -142,11 +167,8 @@ else:
             st.markdown("<p style='color:#B58863; font-size:0.7rem; font-weight:bold;'>FILTRY</p>", unsafe_allow_html=True)
             df_full = load_from_google_sheets()
             if not df_full.empty:
-                # --- NAPRAWA BŁĘDU SORTOWANIA ---
-                # Zamieniamy wszystkie rejestracje na str, usuwamy puste i sortujemy
                 raw_plates = df_full['Numer Rejestracyjny'].astype(str).unique()
                 plates = ["WSZYSTKIE"] + sorted([p for p in raw_plates if p.strip()])
-                
                 f_plate = st.selectbox("POJAZD", plates)
                 f_alerts = st.checkbox("TYLKO ALERTY")
             if st.button("ODŚWIEŻ DANE"): st.rerun()
@@ -161,10 +183,8 @@ else:
         
         if not df_full.empty:
             df = df_full.copy()
-            # Dopasowanie filtra (konwersja na str dla pewności)
             if f_plate != "WSZYSTKIE":
                 df = df[df['Numer Rejestracyjny'].astype(str) == f_plate]
-            
             if f_alerts:
                 df = df[df['Wynik Kontroli'].str.contains("ALERT|USTERK|BRAK", na=False, case=False)]
             
