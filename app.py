@@ -247,7 +247,7 @@ else:
 
     else:
         # WIDOK KIEROWCY
-        st.markdown("<h2 class='vorteza-header'>KARTA POJAZDU</h2>", unsafe_allow_html=True)
+        st.markdown("<h2 class='vorteza-header'>VORTEZA base</h2>", unsafe_allow_html=True)
         data_gh, _ = get_remote_data()
         
         with st.form("driver_form", clear_on_submit=True):
