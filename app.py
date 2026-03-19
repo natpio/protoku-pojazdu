@@ -7,7 +7,7 @@ import pandas as pd
 from datetime import datetime
 
 # =========================================================
-# 1. KONFIGURACJA I POBIERANIE DANYCH Z JSON (GITHUB)
+# 1. KONFIGURACJA GITHUB (LISTA KONTROLNA I USERZY)
 # =========================================================
 def get_remote_config():
     try:
@@ -29,11 +29,11 @@ def get_remote_config():
     return None
 
 # =========================================================
-# 2. KOMUNIKACJA Z BAZĄ SUPABASE (TRANSACTION POOLER)
+# 2. KOMUNIKACJA Z BAZĄ (SUPABASE POOLER PORT 6543)
 # =========================================================
 def get_connection():
     try:
-        # Port 6543 i sslmode='require' są kluczowe dla stabilności w Streamlit Cloud
+        # Transaction Pooler wymaga sslmode='require'
         return psycopg2.connect(
             host=st.secrets["postgres"]["host"],
             port=st.secrets["postgres"]["port"],
@@ -85,7 +85,7 @@ def get_recent_protocols(limit=15):
     return None
 
 # =========================================================
-# 3. DESIGN VORTEZA 8.6 - FULL CSS & DARK SIDEBAR
+# 3. DESIGN VORTEZA 8.8 - FULL CUSTOM CSS
 # =========================================================
 def apply_vorteza_design():
     try:
@@ -97,23 +97,20 @@ def apply_vorteza_design():
         <style>
         @import url('https://fonts.googleapis.com/css2?family=Michroma&family=Montserrat:wght@400;600&display=swap');
         
-        /* GŁÓWNA APLIKACJA */
+        /* GŁÓWNE TŁO APLIKACJI */
         .stApp {{
             background: linear-gradient(rgba(0,0,0,0.88), rgba(0,0,0,0.88)), url("data:image/png;base64,{bg_base64}");
             background-size: cover; background-attachment: fixed;
         }}
 
-        /* STYLIZACJA BOCZNEGO PASKA (SIDEBAR) */
+        /* CIEMNY BOCZNY PASEK (SIDEBAR) */
         section[data-testid="stSidebar"] {{
-            background-color: rgba(15, 15, 15, 0.98) !important;
+            background-color: #0a0a0a !important;
             border-right: 1px solid rgba(181, 136, 99, 0.3) !important;
         }}
         
-        section[data-testid="stSidebar"] .stButton > button {{
-            background: rgba(181, 136, 99, 0.1) !important;
-            border: 1px solid #B58863 !important;
-            color: #B58863 !important;
-            font-size: 0.7rem !important;
+        section[data-testid="stSidebar"] * {{
+            color: #FFFFFF !important;
         }}
 
         /* LOGO I TYPOGRAFIA */
@@ -121,76 +118,59 @@ def apply_vorteza_design():
             font-family: 'Michroma', sans-serif !important;
             color: #B58863 !important;
             text-align: center; font-size: 1.4rem !important;
-            letter-spacing: 4px !important; text-transform: uppercase;
-            margin-bottom: 30px; margin-top: 10px;
+            letter-spacing: 5px !important; text-transform: uppercase;
+            margin-bottom: 30px;
         }}
 
-        /* KARTY WPISÓW */
+        /* KARTY PROTOKOŁÓW */
         .vorteza-card {{
-            background: rgba(25, 25, 25, 0.85);
+            background: rgba(20, 20, 20, 0.95);
             border: 1px solid rgba(181, 136, 99, 0.2);
             border-left: 5px solid #B58863;
-            border-radius: 4px; padding: 18px; margin-bottom: 12px;
+            border-radius: 4px; padding: 20px; margin-bottom: 15px;
         }}
 
         /* ALERTY DLA DYSPOZYTORA */
         .alert-box {{
-            background: rgba(255, 75, 75, 0.12);
-            border: 1px solid rgba(255, 75, 75, 0.4);
+            background: rgba(255, 75, 75, 0.15);
+            border: 1px solid #FF4B4B;
             color: #FF4B4B !important;
             padding: 8px; border-radius: 4px; margin: 4px 0;
-            font-size: 0.82rem; font-weight: 600;
+            font-size: 0.85rem; font-weight: 600;
         }}
 
         .ok-box {{
             color: #28A745 !important;
-            font-size: 0.78rem; margin: 2px 0; opacity: 0.8;
+            font-size: 0.8rem; margin: 2px 0;
         }}
 
-        /* PRZYCISKI GŁÓWNE */
+        /* PRZYCISKI */
         .stButton > button {{
             background: #B58863 !important;
             color: white !important; font-family: 'Michroma', sans-serif !important;
             width: 100%; border-radius: 2px !important;
             border: none !important; padding: 16px !important;
-            letter-spacing: 2px; transition: 0.3s;
+            letter-spacing: 2px;
         }}
         
-        .stButton > button:hover {{
-            background: #966b4a !important;
-            box-shadow: 0 0 15px rgba(181, 136, 99, 0.4);
-        }}
-
-        /* FIX DLA EXPANDERÓW */
+        /* EXPANDERY */
         div[data-testid="stExpander"] svg {{ display: none !important; }}
         div[data-testid="stExpander"] summary span {{ color: transparent !important; font-size: 0px !important; }}
         .streamlit-expanderHeader {{
-            background: rgba(181, 136, 99, 0.08) !important;
-            border: 1px solid rgba(181, 136, 99, 0.3) !important;
-            border-radius: 4px !important;
+            background: rgba(181, 136, 99, 0.1) !important;
+            border: 1px solid rgba(181, 136, 99, 0.4) !important;
         }}
         
-        /* OGÓLNE TEKSTY */
         label, p, span, h3 {{ font-family: 'Montserrat', sans-serif !important; color: #FFFFFF !important; }}
-        
-        /* UKRYWANIE ELEMENTÓW SYSTEMOWYCH */
         #MainMenu, footer, header {{visibility: hidden;}}
         .stDeployButton {{display:none;}}
         </style>
     """, unsafe_allow_html=True)
 
-def show_logo():
-    try:
-        # Wyświetlanie logo z pliku lokalnego
-        st.image('logo_vorteza.png', width=200)
-    except:
-        # Jeśli pliku nie ma, wyświetlamy stylowy tekst zastępczy
-        st.markdown('<p class="logo-font">VORTEZA</p>', unsafe_allow_html=True)
-
 # =========================================================
-# 4. GŁÓWNA LOGIKA APLIKACJI
+# 4. START APLIKACJI
 # =========================================================
-st.set_page_config(page_title="VORTEZA LOGISTICS - SQM", layout="wide", page_icon="🚛")
+st.set_page_config(page_title="VORTEZA - SQM SOLUTIONS", layout="wide")
 apply_vorteza_design()
 
 config = get_remote_config()
@@ -198,125 +178,87 @@ config = get_remote_config()
 if "auth" not in st.session_state:
     st.session_state.auth = False
 
-# --- EKRAN LOGOWANIA (SYSTEM ACCESS) ---
+# EKRAN LOGOWANIA
 if not st.session_state.auth:
     st.markdown("<br><br>", unsafe_allow_html=True)
-    col_l, col_mid, col_r = st.columns([1, 2, 1])
-    
-    with col_mid:
-        st.markdown("<div class='vorteza-card' style='text-align:center;'>", unsafe_allow_html=True)
-        show_logo()
-        st.markdown("<p style='letter-spacing:3px; color:#B58863; font-size:0.8rem;'>SYSTEM ACCESS</p>", unsafe_allow_html=True)
-        
+    c1, c2, c3 = st.columns([1, 2, 1])
+    with c2:
+        st.markdown("<p class='logo-font'>VORTEZA</p>", unsafe_allow_html=True)
+        st.markdown("<div class='vorteza-card'>", unsafe_allow_html=True)
         u = st.text_input("OPERATOR ID")
         p = st.text_input("SECURITY KEY", type="password")
-        
         if st.button("AUTHORIZE"):
             if config and u in config["uzytkownicy"] and config["uzytkownicy"][u] == p:
-                st.session_state.auth = True
-                st.session_state.user = u
+                st.session_state.auth, st.session_state.user = True, u
                 st.rerun()
             else:
-                st.error("ACCESS DENIED: INVALID CREDENTIALS")
+                st.error("ACCESS DENIED")
         st.markdown("</div>", unsafe_allow_html=True)
 
-# --- PANEL GŁÓWNY PO AUTORYZACJI ---
+# GŁÓWNY PANEL
 else:
-    # Sidebar z Logo i Operatorem
     with st.sidebar:
-        show_logo()
-        st.markdown(f"<p style='text-align:center; color:#B58863; font-size:0.8rem; margin-top:-20px;'>OPERATOR: {st.session_state.user.upper()}</p>", unsafe_allow_html=True)
-        st.markdown("<br><br>", unsafe_allow_html=True)
-        
+        st.markdown("<p class='logo-font' style='font-size:1rem;'>VORTEZA</p>", unsafe_allow_html=True)
+        st.markdown(f"<p style='text-align:center;'>USER: {st.session_state.user.upper()}</p>", unsafe_allow_html=True)
+        st.markdown("---")
         if st.button("TERMINATE SESSION"):
             st.session_state.auth = False
             st.rerun()
 
-    # Taby główne
-    tab1, tab2 = st.tabs(["📝 NEW PROTOCOL", "📊 DISPATCHER DASHBOARD"])
+    tab1, tab2 = st.tabs(["📝 NOWY PROTOKÓŁ", "📊 PANEL DYSPOZYTORA"])
 
-    # --- TAB 1: FORMULARZ PROTOKOŁU ---
     with tab1:
-        st.markdown('<p class="logo-font">VEHICLE INSPECTION</p>', unsafe_allow_html=True)
-        
-        with st.form("inspection_form"):
-            c1, c2 = st.columns(2)
-            with c1:
-                rej = st.text_input("LICENSE PLATE (NR REJESTRACYJNY)", placeholder="np. PO 12345")
-                km = st.number_input("MILEAGE (PRZEBIEG KM)", step=1, value=0)
-            with c2:
-                st.info(f"Wypełniasz protokół jako: {st.session_state.user.upper()}")
-                st.write(f"Data operacji: {datetime.now().strftime('%d.%m.%Y %H:%M')}")
+        st.markdown("<p class='logo-font'>VEHICLE INSPECTION</p>", unsafe_allow_html=True)
+        with st.form("main_protocol"):
+            col_a, col_b = st.columns(2)
+            with col_a:
+                rej = st.text_input("LICENSE PLATE")
+                km = st.number_input("MILEAGE (KM)", step=1, value=0)
+            with col_b:
+                st.write(f"DATE: {datetime.now().strftime('%d.%m.%Y')}")
+                st.write(f"OPERATOR: {st.session_state.user.upper()}")
 
             wyniki = {}
             if config and "lista_kontrolna" in config:
-                for kategoria, punkty in config["lista_kontrolna"].items():
-                    with st.expander(f"► {kategoria.upper()}"):
-                        wyniki[kategoria] = {}
-                        # Ustawiamy 3 kolumny dla oszczędności miejsca w formularzu
-                        cols = st.columns(2)
-                        for idx, pt in enumerate(punkty):
-                            target_col = cols[idx % 2]
-                            with target_col:
-                                val = st.checkbox(pt, key=f"check_{pt}", value=True)
-                                wyniki[kategoria][pt] = val
+                for kat, punkty in config["lista_kontrolna"].items():
+                    with st.expander(f"► {kat.upper()}"):
+                        wyniki[kat] = {}
+                        for pt in punkty:
+                            val = st.checkbox(pt, key=f"f_{pt}", value=True)
+                            wyniki[kat][pt] = val
 
-            st.markdown("<br>", unsafe_allow_html=True)
-            uwagi_text = st.text_area("ADDITIONAL OBSERVATIONS / DAMAGE DESCRIPTION", height=100)
-            
-            if st.form_submit_button("TRANSMIT AND ENCRYPT PROTOCOL"):
-                if not rej or rej == "":
-                    st.error("WPROWADŹ NUMER REJESTRACYJNY!")
+            obs = st.text_area("OBSERVATIONS / DAMAGE")
+            if st.form_submit_button("TRANSMIT PROTOCOL"):
+                if not rej: st.error("PLATE REQUIRED")
                 else:
-                    with st.spinner("TRANSMITTING TO SECURE SERVER..."):
-                        if save_to_supabase(rej, km, uwagi_text, wyniki, st.session_state.user):
-                            st.success("PROTOCOL SAVED AND TRANSMITTED SUCCESSFULLY")
-                            st.balloons()
+                    if save_to_supabase(rej, km, obs, wyniki, st.session_state.user):
+                        st.success("TRANSMITTED TO VORTEZA-BASE")
+                        st.balloons()
 
-    # --- TAB 2: DASHBOARD DYSPOZYTORA (HISTORIA I ALERTY) ---
     with tab2:
-        st.markdown('<p class="logo-font">LOGISTICS MONITORING</p>', unsafe_allow_html=True)
-        
-        col_ref, col_empty = st.columns([1, 4])
-        with col_ref:
-            if st.button("REFRESH DATA"): st.rerun()
+        st.markdown("<p class='logo-font'>MONITORING CENTER</p>", unsafe_allow_html=True)
+        if st.button("REFRESH STATUS"): st.rerun()
         
         logs = get_recent_protocols()
-        
-        if logs is not None and not logs.empty:
+        if logs is not None:
             for _, row in logs.iterrows():
                 with st.container():
-                    # Nagłówek wpisu w formie karty
                     st.markdown(f"""
                     <div class="vorteza-card">
-                        <span style="color:#B58863; font-weight:600;">{row['created_at'].strftime('%d.%m.%Y %H:%M')}</span> | 
-                        <span style="font-size:1.1rem; font-weight:bold; letter-spacing:1px;">🚗 {row['rejestracja']}</span> | 
+                        <span style="color:#B58863;">{row['created_at'].strftime('%H:%M | %d.%m.%Y')}</span> | 
+                        <span style="font-size:1.1rem; font-weight:bold;">🚗 {row['rejestracja']}</span> | 
                         👤 {row['operator_id']} | 🛣️ {row['przebieg']} KM
                     </div>
                     """, unsafe_allow_html=True)
                     
-                    # Analiza braków w kategoriach
-                    lista_danych = row['lista_kontrolna']
-                    kategorie_cols = st.columns(len(lista_danych.keys()))
-                    
-                    for i, (kat, punkty) in enumerate(lista_danych.items()):
-                        with kategorie_cols[i]:
-                            st.markdown(f"<p style='color:#B58863; font-size:0.75rem; font-weight:600; border-bottom:1px solid #333; padding-bottom:3px;'>{kat.upper()}</p>", unsafe_allow_html=True)
-                            for pt, stan in punkty.items():
+                    l_k = row['lista_kontrolna']
+                    cols = st.columns(len(l_k.keys()))
+                    for i, (kat, pts) in enumerate(l_k.items()):
+                        with cols[i]:
+                            st.markdown(f"<p style='color:#B58863; font-size:0.7rem; border-bottom:1px solid #333;'>{kat.upper()}</p>", unsafe_allow_html=True)
+                            for pt, stan in pts.items():
                                 if not stan:
-                                    # Czerwony alert dla brakującego elementu
                                     st.markdown(f"<div class='alert-box'>❌ {pt}</div>", unsafe_allow_html=True)
                                 else:
-                                    # Subtelny zielony znacznik dla sprawnego elementu
                                     st.markdown(f"<div class='ok-box'>• {pt}</div>", unsafe_allow_html=True)
-                    
-                    if row['uwagi'] and row['uwagi'].strip() != "":
-                        st.markdown(f"<div style='background:rgba(181,136,99,0.05); padding:10px; border-radius:4px; border:1px dashed rgba(181,136,99,0.3); font-size:0.85rem; color:#ddd;'><b>OBSERVATIONS:</b> {row['uwagi']}</div>", unsafe_allow_html=True)
-                    
-                    st.markdown("<br><hr style='border:0.5px solid rgba(255,255,255,0.05);'><br>", unsafe_allow_html=True)
-        else:
-            st.info("Brak zarejestrowanych protokołów w bazie danych.")
-
-# =========================================================
-# KONIEC KODU
-# =========================================================
+                    st.divider()
