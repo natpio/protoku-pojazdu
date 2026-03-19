@@ -8,7 +8,7 @@ from datetime import datetime
 from google.oauth2.service_account import Credentials
 
 # =========================================================
-# 1. KONFIGURACJA I ZASOBY (GITHUB & GOOGLE)
+# 1. KONFIGURACJA I ZASOBY
 # =========================================================
 try:
     GITHUB_TOKEN = st.secrets["G_TOKEN"]["G_TOKEN"]
@@ -20,7 +20,6 @@ REPO_NAME = "protoku-pojazdu"
 SHEET_ID = "1UDehrxN8_j1CCrpq9FcXSory7FMA0LSdSk8PCIxIvPQ"
 
 def get_github_file(file_path):
-    """Pobiera dowolny plik z repozytorium GitHub."""
     if not GITHUB_TOKEN: return None
     url = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/contents/{file_path}"
     headers = {"Authorization": f"token {GITHUB_TOKEN}"}
@@ -32,7 +31,6 @@ def get_github_file(file_path):
     return None
 
 def get_remote_data():
-    """Pobiera dane JSON listy kontrolnej."""
     content = get_github_file("lista_kontrolna.json")
     if content:
         data = json.loads(base64.b64decode(content['content']).decode('utf-8'))
@@ -40,10 +38,9 @@ def get_remote_data():
     return None, None
 
 def get_bg_base64():
-    """Pobiera tło z GitHub i konwertuje na Base64."""
     content = get_github_file("bg_vorteza.png")
     if content:
-        return content['content'].replace("\n", "") # GitHub zwraca już base64
+        return content['content'].replace("\n", "")
     return ""
 
 def get_gspread_client():
@@ -69,7 +66,7 @@ def save_to_google_sheets(row_data):
     except: return False
 
 # =========================================================
-# 2. DESIGN VORTEZA 15.0 - PEŁNA OPRAWA WIZUALNA
+# 2. DESIGN VORTEZA 15.1
 # =========================================================
 def apply_vorteza_design():
     bg_data = get_bg_base64()
@@ -83,62 +80,27 @@ def apply_vorteza_design():
     st.markdown(f"""
         <style>
         @import url('https://fonts.googleapis.com/css2?family=Michroma&family=Montserrat:wght@400;700&display=swap');
-        
-        .stApp {{
-            {bg_style}
-        }}
-        
+        .stApp {{ {bg_style} }}
         .vorteza-header {{
             font-family: 'Michroma', sans-serif;
-            color: #B58863;
-            text-align: center;
-            letter-spacing: 4px;
-            padding: 20px;
-            text-transform: uppercase;
+            color: #B58863; text-align: center; letter-spacing: 4px; padding: 20px; text-transform: uppercase;
         }}
-
         section[data-testid="stSidebar"] {{
             background-color: rgba(5, 5, 5, 0.95) !important;
             border-right: 1px solid #B58863;
         }}
-
         .log-entry {{
             background-color: rgba(17, 17, 17, 0.9);
-            border-left: 5px solid #B58863;
-            border-radius: 4px;
-            padding: 20px;
-            margin-bottom: 25px;
-            color: white;
-            font-family: 'Montserrat', sans-serif;
-            backdrop-filter: blur(5px);
+            border-left: 5px solid #B58863; border-radius: 4px; padding: 20px; margin-bottom: 25px;
+            color: white; font-family: 'Montserrat', sans-serif; backdrop-filter: blur(5px);
         }}
-
         .log-entry-alert {{ border-left: 5px solid #FF4B4B !important; }}
-
         .fault-list {{
-            background: rgba(255, 75, 75, 0.15);
-            border: 1px solid rgba(255, 75, 75, 0.4);
-            border-radius: 4px;
-            padding: 12px;
-            margin-top: 10px;
+            background: rgba(255, 75, 75, 0.15); border: 1px solid rgba(255, 75, 75, 0.4);
+            border-radius: 4px; padding: 12px; margin-top: 10px;
         }}
-
-        .fault-item {{
-            color: #FF4B4B;
-            font-size: 0.85rem;
-            display: block;
-            margin-bottom: 3px;
-            font-weight: 600;
-        }}
-
-        .status-ok {{
-            color: #B58863;
-            font-weight: bold;
-            font-size: 0.9rem;
-            margin-top: 10px;
-            display: block;
-        }}
-
+        .fault-item {{ color: #FF4B4B; font-size: 0.85rem; display: block; margin-bottom: 3px; font-weight: 600; }}
+        .status-ok {{ color: #B58863; font-weight: bold; font-size: 0.9rem; margin-top: 10px; display: block; }}
         #MainMenu, footer, header {{visibility: hidden;}}
         .stDeployButton {{display:none;}}
         </style>
@@ -180,7 +142,11 @@ else:
             st.markdown("<p style='color:#B58863; font-size:0.7rem; font-weight:bold;'>FILTRY</p>", unsafe_allow_html=True)
             df_full = load_from_google_sheets()
             if not df_full.empty:
-                plates = ["WSZYSTKIE"] + sorted(list(df_full['Numer Rejestracyjny'].unique()))
+                # --- NAPRAWA BŁĘDU SORTOWANIA ---
+                # Zamieniamy wszystkie rejestracje na str, usuwamy puste i sortujemy
+                raw_plates = df_full['Numer Rejestracyjny'].astype(str).unique()
+                plates = ["WSZYSTKIE"] + sorted([p for p in raw_plates if p.strip()])
+                
                 f_plate = st.selectbox("POJAZD", plates)
                 f_alerts = st.checkbox("TYLKO ALERTY")
             if st.button("ODŚWIEŻ DANE"): st.rerun()
@@ -195,8 +161,12 @@ else:
         
         if not df_full.empty:
             df = df_full.copy()
-            if f_plate != "WSZYSTKIE": df = df[df['Numer Rejestracyjny'] == f_plate]
-            if f_alerts: df = df[df['Wynik Kontroli'].str.contains("ALERT|USTERK|BRAK", na=False, case=False)]
+            # Dopasowanie filtra (konwersja na str dla pewności)
+            if f_plate != "WSZYSTKIE":
+                df = df[df['Numer Rejestracyjny'].astype(str) == f_plate]
+            
+            if f_alerts:
+                df = df[df['Wynik Kontroli'].str.contains("ALERT|USTERK|BRAK", na=False, case=False)]
             
             df['Data i Godzina'] = pd.to_datetime(df['Data i Godzina'])
             df = df.sort_values(by='Data i Godzina', ascending=False)
