@@ -66,13 +66,13 @@ def save_to_google_sheets(row_data):
     except: return False
 
 # =========================================================
-# 2. DESIGN VORTEZA 15.4 - TOTAL COPPER CONTRAST
+# 2. DESIGN VORTEZA 15.5 - EKSTREMALNY KONTRAST
 # =========================================================
 def apply_vorteza_design():
     bg_data = get_bg_base64()
     bg_style = f"""
         .stApp {{
-            background: linear-gradient(rgba(0,0,0,0.85), rgba(0,0,0,0.85)), 
+            background: linear-gradient(rgba(0,0,0,0.9), rgba(0,0,0,0.9)), 
                         url("data:image/png;base64,{bg_data}") !important;
             background-size: cover !important;
             background-attachment: fixed !important;
@@ -85,77 +85,75 @@ def apply_vorteza_design():
         
         {bg_style}
         
-        /* Główne Nagłówki */
+        /* WYMUSZENIE KOLORU MIEDZIANEGO NA WSZYSTKIM CO TEKSTOWE */
+        html, body, [data-testid="stWidgetLabel"], .stMarkdown, p, span, label, .st-ae {{
+            color: #B58863 !important;
+            font-family: 'Montserrat', sans-serif !important;
+        }}
+
         .vorteza-header {{
-            font-family: 'Michroma', sans-serif;
+            font-family: 'Michroma', sans-serif !important;
             color: #B58863 !important;
             text-align: center; letter-spacing: 4px; padding: 20px; text-transform: uppercase;
         }}
         
-        /* Sidebar */
+        /* Sidebar Fix */
         section[data-testid="stSidebar"] {{
             background-color: rgba(5, 5, 5, 0.98) !important;
             border-right: 1px solid #B58863;
         }}
         
-        [data-testid="stSidebar"] * {{
-            color: #B58863 !important;
-            font-family: 'Montserrat', sans-serif;
-        }}
-
-        /* Karty Dyspozytora */
+        /* Karty Dyspozytora - Całkowite przeprojektowanie dla czytelności */
         .log-entry {{
-            background-color: rgba(10, 10, 10, 0.92) !important;
-            border: 1px solid rgba(181, 136, 99, 0.3);
-            border-left: 6px solid #B58863 !important;
+            background-color: rgba(15, 15, 15, 0.95) !important;
+            border: 1px solid rgba(181, 136, 99, 0.4) !important;
+            border-left: 8px solid #B58863 !important;
             border-radius: 4px;
-            padding: 18px;
+            padding: 25px;
             margin-bottom: 20px;
-            backdrop-filter: blur(10px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.6);
         }}
 
-        .log-entry-alert {{ border-left: 6px solid #FF4B4B !important; }}
+        .log-entry-alert {{ 
+            border-left: 8px solid #FF4B4B !important;
+            border-color: rgba(255, 75, 75, 0.3) !important;
+        }}
 
         .card-plate {{
-            font-family: 'Michroma', sans-serif;
-            font-size: 1.4rem;
+            font-family: 'Michroma', sans-serif !important;
+            font-size: 1.5rem !important;
             color: #B58863 !important;
-            margin-bottom: 2px;
+            margin-bottom: 5px;
         }}
 
-        .card-info {{
-            font-size: 0.9rem;
+        /* Fix dla Expanderów (widoczne na image_e2ba46.png) */
+        .stExpander {{
+            background-color: rgba(255,255,255,0.03) !important;
+            border: 1px solid rgba(181, 136, 99, 0.2) !important;
+            margin-bottom: 10px !important;
+        }}
+        
+        .stExpander p {{
             color: #B58863 !important;
-            opacity: 0.9;
-            margin-bottom: 10px;
+            font-weight: 500 !important;
         }}
 
-        /* Lista Usterek - brak białego tła */
-        .fault-list {{
-            background: rgba(255, 75, 75, 0.12);
-            border: 1px solid rgba(255, 75, 75, 0.3);
-            border-radius: 4px;
-            padding: 12px;
-            margin-top: 10px;
-        }}
-
-        .fault-item {{
-            color: #FF4B4B !important;
-            font-size: 0.85rem;
-            font-weight: 700;
-            display: block;
-        }}
-
-        /* Ukrywanie zbędnych elementów Streamlit */
+        /* Ukrywanie elementów systemowych */
         #MainMenu, footer, header {{visibility: hidden;}}
         .stDeployButton {{display:none;}}
         
-        /* Styl przycisków */
+        /* Przyciski */
         .stButton>button {{
-            background-color: rgba(181, 136, 99, 0.2) !important;
+            width: 100%;
+            background-color: transparent !important;
             color: #B58863 !important;
             border: 1px solid #B58863 !important;
-            font-family: 'Michroma', sans-serif;
+            font-family: 'Michroma', sans-serif !important;
+            transition: 0.3s;
+        }}
+        .stButton>button:hover {{
+            background-color: #B58863 !important;
+            color: black !important;
         }}
         </style>
     """, unsafe_allow_html=True)
@@ -189,7 +187,7 @@ else:
     with st.sidebar:
         try: st.image('logo_vorteza.png', width=150)
         except: pass
-        st.markdown(f"**OPERATOR:** {st.session_state.user.upper()}")
+        st.write(f"USER: **{st.session_state.user.upper()}**")
         st.markdown("---")
         
         if is_dispatcher:
@@ -198,8 +196,8 @@ else:
                 raw_plates = df_full['Numer Rejestracyjny'].astype(str).unique()
                 plates = ["WSZYSTKIE"] + sorted([p for p in raw_plates if p.strip()])
                 f_plate = st.selectbox("POJAZD", plates)
-                f_alerts = st.checkbox("TYLKO ALERTY")
-            if st.button("ODŚWIEŻ"): st.rerun()
+                f_alerts = st.checkbox("POKAŻ TYLKO ALERTY")
+            if st.button("ODŚWIEŻ BAZĘ"): st.rerun()
             st.markdown("---")
         
         if st.button("WYLOGUJ"):
@@ -207,15 +205,11 @@ else:
             st.rerun()
 
     if is_dispatcher:
-        st.markdown("<h2 class='vorteza-header'>DISPATCHER COMMAND CENTER</h2>", unsafe_allow_html=True)
+        st.markdown("<h2 class='vorteza-header'>COMMAND CENTER</h2>", unsafe_allow_html=True)
         
         if not df_full.empty:
             df = df_full.copy()
-            
-            # --- FIX DATY ---
-            # errors='coerce' zamieni błędne daty na NaT (Not a Time)
             df['Data i Godzina'] = pd.to_datetime(df['Data i Godzina'], errors='coerce')
-            # Usuwamy wiersze gdzie data jest niepoprawna
             df = df.dropna(subset=['Data i Godzina'])
             
             if f_plate != "WSZYSTKIE":
@@ -234,37 +228,37 @@ else:
                 if is_alert:
                     msg = status_raw.split(":")[-1] if ":" in status_raw else status_raw
                     items = msg.split(",")
-                    fault_html = '<div class="fault-list">'
+                    fault_html = '<div style="background:rgba(255,75,75,0.1); border:1px solid rgba(255,75,75,0.3); padding:10px; margin-top:10px;">'
                     for item in items:
-                        fault_html += f'<span class="fault-item">⚠️ {item.strip()}</span>'
+                        fault_html += f'<span style="color:#FF4B4B !important; display:block; font-weight:700;">⚠️ {item.strip()}</span>'
                     fault_html += '</div>'
                 else:
-                    fault_html = '<div style="color:#B58863; font-weight:bold; font-size:0.9rem; margin-top:5px;">✅ STATUS: NOMINAL</div>'
+                    fault_html = '<div style="color:#B58863; font-weight:bold; margin-top:10px;">✅ WSZYSTKIE SYSTEMY SPRAWNE</div>'
 
                 st.markdown(f"""
                 <div class="{entry_class}">
-                    <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-                        <div class="card-plate">{row.get('Numer Rejestracyjny', 'N/A')}</div>
-                        <div style="color:#B58863; opacity:0.7; font-size:0.8rem;">{row.get('Data i Godzina').strftime('%Y-%m-%d | %H:%M')}</div>
+                    <div style="display:flex; justify-content:space-between;">
+                        <span class="card-plate">{row.get('Numer Rejestracyjny', 'N/A')}</span>
+                        <span style="opacity:0.7; font-size:0.8rem;">{row.get('Data i Godzina').strftime('%Y-%m-%d | %H:%M')}</span>
                     </div>
-                    <div class="card-info">
-                        OP: <b>{row.get('Operator ID', 'N/A')}</b> | PRZEBIEG: <b>{row.get('Przebieg (km)', 0)} KM</b>
+                    <div style="margin: 10px 0;">
+                        OPERATOR: <b style="color:#B58863;">{row.get('Operator ID', 'N/A')}</b> | 
+                        PRZEBIEG: <b style="color:#B58863;">{row.get('Przebieg (km)', 0)} KM</b>
                     </div>
                     {fault_html}
-                    {f'<div style="margin-top:10px; font-size:0.8rem; color:rgba(181,136,99,0.7); border-top:1px solid rgba(181,136,99,0.1); padding-top:8px;"><i>Uwagi: {row.get("Uwagi i Obserwacje", "")}</i></div>' if row.get("Uwagi i Obserwacje") else ""}
+                    {f'<div style="margin-top:10px; opacity:0.6; font-style:italic; border-top:1px solid rgba(181,136,99,0.1); padding-top:5px;">Notatki: {row.get("Uwagi i Obserwacje", "")}</div>' if row.get("Uwagi i Obserwacje") else ""}
                 </div>
                 """, unsafe_allow_html=True)
-        else:
-            st.info("Baza danych jest pusta.")
+        else: st.info("Brak danych.")
 
     else:
         # WIDOK KIEROWCY
-        st.markdown("<h2 class='vorteza-header'>PROTOKÓŁ POJAZDU</h2>", unsafe_allow_html=True)
+        st.markdown("<h2 class='vorteza-header'>KARTA KONTROLNA</h2>", unsafe_allow_html=True)
         data_gh, _ = get_remote_data()
         
         with st.form("driver_form", clear_on_submit=True):
             r = st.text_input("NUMER REJESTRACYJNY").upper()
-            k = st.number_input("AKTUALNY PRZEBIEG (KM)", step=1)
+            k = st.number_input("PRZEBIEG POJAZDU (KM)", step=1)
             
             check_results = {}
             if data_gh and "lista_kontrolna" in data_gh:
@@ -274,13 +268,13 @@ else:
                             res = st.checkbox(pt, key=f"f_{pt}")
                             check_results[pt] = "OK" if res else "BRAK"
             
-            u = st.text_area("Uwagi i Obserwacje")
+            u = st.text_area("DODATKOWE UWAGI")
             
-            if st.form_submit_button("WYŚLIJ PROTOKÓŁ"):
-                if not r: st.error("Podaj numer rejestracyjny!")
+            if st.form_submit_button("ZATWIERDŹ I WYŚLIJ PROTOKÓŁ"):
+                if not r: st.error("Wpisz numer rejestracyjny!")
                 else:
                     ts = datetime.now().strftime("%Y-%m-%d %H:%M")
                     errs = [pt for pt, v in check_results.items() if v == "BRAK"]
-                    status = "System Status: NOMINAL" if not errs else f"ALERT: {', '.join(errs)}"
+                    status = "OK" if not errs else f"ALERT: {', '.join(errs)}"
                     if save_to_google_sheets([ts, st.session_state.user, r, k, status, u]):
-                        st.success("Raport wysłany.")
+                        st.success("Protokół został zapisany pomyślnie.")
