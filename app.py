@@ -29,16 +29,18 @@ def get_remote_config():
     return None
 
 # =========================================================
-# 2. KOMUNIKACJA Z BAZĄ SUPABASE (POSTGRESQL)
+# 2. KOMUNIKACJA Z BAZĄ SUPABASE (TRANSACTION POOLER)
 # =========================================================
 def get_connection():
     try:
+        # Korzystamy z portu 6543 i sslmode='require' dla stabilności w chmurze
         return psycopg2.connect(
             host=st.secrets["postgres"]["host"],
             port=st.secrets["postgres"]["port"],
             database=st.secrets["postgres"]["database"],
             user=st.secrets["postgres"]["user"],
             password=st.secrets["postgres"]["password"],
+            sslmode="require",
             connect_timeout=10
         )
     except Exception as e:
@@ -69,7 +71,6 @@ def get_recent_protocols(limit=15):
     conn = get_connection()
     if conn:
         try:
-            # Pobieramy dane, formatując datę od razu w SQL dla czytelności
             query = f"""
                 SELECT created_at, rejestracja, operator_id, lista_kontrolna, uwagi, przebieg 
                 FROM protokoly_vorteza 
@@ -94,13 +95,11 @@ def apply_vorteza_design():
         <style>
         @import url('https://fonts.googleapis.com/css2?family=Michroma&family=Montserrat:wght@400;600&display=swap');
         
-        /* Tło i główna aplikacja */
         .stApp {{
             background: linear-gradient(rgba(0,0,0,0.85), rgba(0,0,0,0.85)), url("data:image/png;base64,{bg_base64}");
             background-size: cover; background-attachment: fixed;
         }}
 
-        /* Czcionka Logo */
         .logo-font {{
             font-family: 'Michroma', sans-serif !important;
             color: #B58863 !important;
@@ -109,7 +108,6 @@ def apply_vorteza_design():
             margin-bottom: 20px;
         }}
 
-        /* Styl Kart (Cards) */
         .vorteza-card {{
             background: rgba(25, 25, 25, 0.85);
             border: 1px solid rgba(181, 136, 99, 0.3);
@@ -117,7 +115,6 @@ def apply_vorteza_design():
             border-radius: 4px; padding: 15px; margin-bottom: 10px;
         }}
 
-        /* Alert dla Dyspozytora (Braki) */
         .alert-box {{
             background: rgba(255, 75, 75, 0.15);
             border: 1px solid #FF4B4B;
@@ -126,13 +123,11 @@ def apply_vorteza_design():
             font-size: 0.85rem; font-weight: 600;
         }}
 
-        /* Status OK (Zaznaczone) */
         .ok-box {{
             color: #28A745 !important;
             font-size: 0.8rem; margin: 2px 0;
         }}
 
-        /* Przyciski */
         .stButton > button {{
             background: #B58863 !important;
             color: white !important; font-family: 'Michroma', sans-serif !important;
@@ -141,7 +136,6 @@ def apply_vorteza_design():
             letter-spacing: 2px;
         }}
 
-        /* Naprawa expanderów i tekstów */
         div[data-testid="stExpander"] svg {{ display: none !important; }}
         div[data-testid="stExpander"] summary span {{ color: transparent !important; font-size: 0px !important; }}
         .streamlit-expanderHeader {{
@@ -201,7 +195,6 @@ else:
                     with st.expander(f"► {kat.upper()}"):
                         wyniki[kat] = {}
                         for pt in punkty:
-                            # Domyślnie zaznaczone jako OK (True)
                             val = st.checkbox(pt, key=f"form_{pt}", value=True)
                             wyniki[kat][pt] = val
 
@@ -210,7 +203,7 @@ else:
             if st.form_submit_button("TRANSMIT PROTOCOL"):
                 if not rej: st.error("PLATE REQUIRED")
                 else:
-                    with st.spinner("Encrypting and sending..."):
+                    with st.spinner("Processing..."):
                         if save_to_supabase(rej, km, uwagi_text, wyniki, st.session_state.user):
                             st.success("PROTOCOL SAVED IN SUPABASE")
                             st.balloons()
@@ -224,7 +217,6 @@ else:
         if logs is not None:
             for _, row in logs.iterrows():
                 with st.container():
-                    # Nagłówek wpisu
                     st.markdown(f"""
                     <div class="vorteza-card">
                         <span style="color:#B58863;">{row['created_at'].strftime('%H:%M | %d.%m.%Y')}</span> | 
@@ -233,7 +225,6 @@ else:
                     </div>
                     """, unsafe_allow_html=True)
                     
-                    # Wyświetlanie braków (tylko to co odznaczone)
                     lista = row['lista_kontrolna']
                     cols = st.columns(len(lista.keys()))
                     
@@ -250,9 +241,8 @@ else:
                         st.info(f"KOMENTARZ: {row['uwagi']}")
                     st.markdown("<br>", unsafe_allow_html=True)
         else:
-            st.info("No data found in Supabase.")
+            st.info("No data found.")
 
-    # Sidebar
     if st.sidebar.button("TERMINATE SESSION"):
         st.session_state.auth = False
         st.rerun()
